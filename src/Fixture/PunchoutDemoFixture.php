@@ -57,6 +57,8 @@ final class PunchoutDemoFixture extends AbstractFixture
         $buyer->setEnabled(true);
         $buyer->setChannel($channel);
         $buyer->setCustomer($customer);
+        // The buyer simulator runs on the shop itself (local dev server).
+        $buyer->setReturnDomains(['localhost']);
         foreach ([BuyerIdentity::ROLE_FROM => 'demo-buyer@example.com', BuyerIdentity::ROLE_SENDER => 'demo-system@example.com'] as $role => $value) {
             $identity = new BuyerIdentity();
             $identity->setRole($role);

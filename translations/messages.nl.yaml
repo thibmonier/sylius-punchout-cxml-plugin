@@ -23,13 +23,15 @@ tmonier_punchout:
             customer: 'Sylius-klant (e-mail)'
             customer_help: 'PunchOut-sessies loggen in als deze klant: zijn prijzen en groepen zijn van toepassing.'
             return_domains: 'Toegestane retourdomeinen'
-            return_domains_help: 'Eén domein per regel (bijv. ariba.com staat s1.ariba.com toe). Leeg: elke HTTPS-host.'
+            return_domains_help: 'Eén domein per regel: ariba.com (het domein en zijn subdomeinen) of *.ariba.com (alleen subdomeinen). Verplicht: de winkelwagen wordt alleen naar deze domeinen gestuurd.'
             fromDomain: From-domein
             fromIdentity: 'From-identiteit (koper)'
             senderDomain: Sender-domein
             senderIdentity: 'Sender-identiteit (netwerk of systeem)'
             identities: cXML-identiteiten
             identities_help: 'Zoals de koper ze in zijn inkoopsysteem heeft ingesteld (bij SAP Ariba: domein NetworkId, AribaNetworkUserId…).'
+            iframe_origins: Iframe-origins
+            iframe_origins_help: 'Origins die de winkel tijdens een PunchOut-sessie in een iframe mogen tonen, één per regel (bijv. https://s1.ariba.com).'
     flash:
         buyer:
             created: 'PunchOut-koper is aangemaakt.'

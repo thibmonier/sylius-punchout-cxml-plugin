@@ -16,6 +16,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\RegenerateSecretAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\FrameHeadersListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutCartStorageListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
@@ -146,6 +147,10 @@ return static function (ContainerConfigurator $container): void {
     // Shop: the PunchOut cart never becomes the regular session cart
     $services->set(PunchoutCartStorageListener::class)
         ->tag('kernel.event_listener', ['event' => 'kernel.response', 'priority' => -10]);
+
+    // Shop: PunchOut pages may be framed by the buyer's origins only (US-016)
+    $services->set(FrameHeadersListener::class)
+        ->tag('kernel.event_listener', ['event' => 'kernel.response', 'priority' => -16]);
 
     // Shop: PunchOut session banner
     $services->set(PunchoutExtension::class)->tag('twig.extension');

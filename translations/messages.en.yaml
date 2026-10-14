@@ -23,13 +23,15 @@ tmonier_punchout:
             customer: 'Sylius customer (e-mail)'
             customer_help: 'The PunchOut sessions log in as this customer: their prices and groups apply.'
             return_domains: 'Allowed return domains'
-            return_domains_help: 'One domain per line (e.g. ariba.com allows s1.ariba.com). Empty: any HTTPS host.'
+            return_domains_help: 'One domain per line: ariba.com (the domain and its subdomains) or *.ariba.com (subdomains only). Required: the cart is only sent to these domains.'
             fromDomain: 'From domain'
             fromIdentity: 'From identity (buyer)'
             senderDomain: 'Sender domain'
             senderIdentity: 'Sender identity (network or system)'
             identities: 'cXML identities'
             identities_help: 'As configured by the buyer in its procurement system (for SAP Ariba: domain NetworkId, AribaNetworkUserId…).'
+            iframe_origins: 'Iframe origins'
+            iframe_origins_help: 'Origins allowed to show the shop in an iframe during a PunchOut session, one per line (e.g. https://s1.ariba.com).'
     flash:
         buyer:
             created: 'PunchOut buyer has been created.'

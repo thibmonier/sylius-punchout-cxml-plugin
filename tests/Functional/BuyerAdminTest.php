@@ -69,6 +69,32 @@ final class BuyerAdminTest extends WebTestCase
         self::assertNull($this->entityManager()->getRepository(Buyer::class)->findOneBy(['code' => $code]));
     }
 
+    public function testAtLeastOneValidReturnDomainIsRequired(): void
+    {
+        $this->loginAdmin();
+
+        $this->submitCreateForm('nodomain-' . bin2hex(random_bytes(3)), 'a-' . bin2hex(random_bytes(3)) . '@bigcorp.example', returnDomains: '');
+        self::assertStringContainsString('Enter at least one allowed return domain.', $this->errors());
+
+        $this->submitCreateForm('baddomain-' . bin2hex(random_bytes(3)), 'b-' . bin2hex(random_bytes(3)) . '@bigcorp.example', returnDomains: 'https://ariba.com/return');
+        self::assertStringContainsString('Invalid domain: use ariba.com or *.ariba.com.', $this->errors());
+    }
+
+    public function testTheIframeOriginsAreValidatedAndSaved(): void
+    {
+        $this->loginAdmin();
+
+        $this->submitCreateForm('badframe-' . bin2hex(random_bytes(3)), 'c-' . bin2hex(random_bytes(3)) . '@bigcorp.example', iframeOrigins: 'http://s1.ariba.com');
+        self::assertStringContainsString('Invalid origin: use https://host', $this->errors());
+
+        $code = 'frame-' . bin2hex(random_bytes(3));
+        $this->submitCreateForm($code, 'd-' . bin2hex(random_bytes(3)) . '@bigcorp.example', returnDomains: "*.Ariba.com\nariba.example.com", iframeOrigins: "https://S1.ariba.com/\nhttps://s2.ariba.com");
+        self::assertTrue($this->client->getResponse()->isRedirect(), $this->errors());
+        $buyer = $this->buyer($code);
+        self::assertSame(['*.ariba.com', 'ariba.example.com'], $buyer->getReturnDomains());
+        self::assertSame(['https://s1.ariba.com', 'https://s2.ariba.com'], $buyer->getIframeOrigins());
+    }
+
     public function testAFromIdentityBelongsToASingleBuyer(): void
     {
         $catalog = new TestCatalog(self::getContainer());
@@ -105,7 +131,7 @@ final class BuyerAdminTest extends WebTestCase
         self::assertFalse(password_verify($oldSecret, $buyer->getActiveCredentials()[0]->getPasswordHash()));
     }
 
-    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null): void
+    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = ''): void
     {
         $crawler = $this->client->request('GET', '/admin/punchout-buyers/new');
         self::assertResponseIsSuccessful();
@@ -119,7 +145,8 @@ final class BuyerAdminTest extends WebTestCase
         $form['tmonier_punchout_buyer[fromIdentity]'] = $fromIdentity;
         $form['tmonier_punchout_buyer[senderDomain]'] = 'NetworkId';
         $form['tmonier_punchout_buyer[senderIdentity]'] = 'AN-' . bin2hex(random_bytes(3));
-        $form['tmonier_punchout_buyer[returnDomains]'] = "ariba.example.com\n";
+        $form['tmonier_punchout_buyer[returnDomains]'] = $returnDomains;
+        $form['tmonier_punchout_buyer[iframeOrigins]'] = $iframeOrigins;
         $this->client->submit($form);
     }
 

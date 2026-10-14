@@ -21,6 +21,8 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Validator\Constraints\All;
+use Symfony\Component\Validator\Constraints\Count;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\NotNull;
@@ -86,7 +88,16 @@ final class BuyerType extends AbstractResourceType
             ->add('returnDomains', TextareaType::class, [
                 'label' => 'tmonier_punchout.form.buyer.return_domains',
                 'help' => 'tmonier_punchout.form.buyer.return_domains_help',
+                'constraints' => [
+                    new Count(min: 1, minMessage: 'tmonier_punchout.buyer.return_domains.not_blank'),
+                    new All([new Regex(pattern: '/^(\*\.)?([a-z0-9-]+\.)+[a-z][a-z0-9-]+$|^localhost$/', message: 'tmonier_punchout.buyer.return_domains.invalid')]),
+                ],
+            ])
+            ->add('iframeOrigins', TextareaType::class, [
+                'label' => 'tmonier_punchout.form.buyer.iframe_origins',
+                'help' => 'tmonier_punchout.form.buyer.iframe_origins_help',
                 'required' => false,
+                'constraints' => [new All([new Regex(pattern: '#^https://([a-z0-9-]+\.)+[a-z][a-z0-9-]+(:\d{1,5})?$#', message: 'tmonier_punchout.buyer.iframe_origins.invalid')])],
             ])
         ;
 
@@ -112,14 +123,17 @@ final class BuyerType extends AbstractResourceType
             },
         ));
 
-        $builder->get('returnDomains')->addModelTransformer(new CallbackTransformer(
-            static fn (?array $domains): string => implode("\n", array_filter($domains ?? [], is_string(...))),
+        // One value per line (or separated by spaces / commas), lowercased, without duplicates.
+        $lines = new CallbackTransformer(
+            static fn (?array $values): string => implode("\n", array_filter($values ?? [], is_string(...))),
             /** @return list<string> */
             static fn (?string $text): array => array_values(array_unique(array_filter(array_map(
-                static fn (string $line): string => mb_strtolower(trim($line)),
+                static fn (string $line): string => rtrim(mb_strtolower(trim($line)), '/'),
                 preg_split('/[\s,]+/', (string) $text) ?: [],
-            ), static fn (string $domain): bool => $domain !== ''))),
-        ));
+            ), static fn (string $value): bool => $value !== ''))),
+        );
+        $builder->get('returnDomains')->addModelTransformer($lines);
+        $builder->get('iframeOrigins')->addModelTransformer($lines);
 
         $builder->addEventListener(FormEvents::POST_SET_DATA, $this->fillIdentities(...));
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->applyIdentities(...));

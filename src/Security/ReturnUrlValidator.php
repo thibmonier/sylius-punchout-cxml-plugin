@@ -121,12 +121,14 @@ final readonly class ReturnUrlValidator
             1 === preg_match('/\.[a-z][a-z0-9-]*$/', $host);
     }
 
+    /** Deny by default (US-004): a buyer without allowed domain accepts no return URL. */
     private function isAllowedForBuyer(string $host, ?BuyerInterface $buyer): bool
     {
-        // Domain whitelist (made mandatory with US-004)
-        $allowedDomains = $buyer?->getReturnDomains() ?? [];
+        if (!$buyer instanceof BuyerInterface) {
+            return true;
+        }
 
-        return $allowedDomains === [] || $this->hostMatchesDomains($host, $allowedDomains);
+        return $this->hostMatchesDomains($host, $buyer->getReturnDomains());
     }
 
     private function isBlockedIp(string $host): bool
@@ -172,8 +174,13 @@ final readonly class ReturnUrlValidator
     private function hostMatchesDomains(string $host, array $domains): bool
     {
         foreach ($domains as $domain) {
-            // Exact match or subdomain match (.example.com matches sub.example.com)
-            if ($host === $domain || str_ends_with($host, '.' . $domain)) {
+            $domain = strtolower(trim($domain));
+            // "*.ariba.com": the subdomains only; "ariba.com": the domain and its subdomains.
+            if (str_starts_with($domain, '*.')) {
+                if (str_ends_with($host, substr($domain, 1))) {
+                    return true;
+                }
+            } elseif ($domain !== '' && ($host === $domain || str_ends_with($host, '.' . $domain))) {
                 return true;
             }
         }

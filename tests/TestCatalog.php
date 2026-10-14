@@ -37,6 +37,9 @@ final readonly class TestCatalog
      * Creates a PunchOut buyer with identities and a hashed credential.
      * No customer or channel linked.
      *
+     * @param list<string> $returnDomains
+     * @param list<string> $iframeOrigins
+     *
      * @return array{buyer: Buyer, secret: string}
      */
     public function createBuyer(
@@ -44,6 +47,8 @@ final readonly class TestCatalog
         string $fromIdentity = 'test-buyer@example.com',
         string $senderDomain = 'AribaNetworkUserId',
         string $senderIdentity = 'test-system@example.com',
+        array $returnDomains = ['ariba.example.com', 'localhost'],
+        array $iframeOrigins = [],
     ): array {
         $em = $this->container->get(EntityManagerInterface::class);
         $hasher = $this->container->get(CredentialHasher::class);
@@ -57,6 +62,8 @@ final readonly class TestCatalog
         $buyer->setName('Test Buyer ' . bin2hex(random_bytes(4)));
         $buyer->setProtocol('cxml');
         $buyer->setEnabled(true);
+        $buyer->setReturnDomains($returnDomains);
+        $buyer->setIframeOrigins($iframeOrigins);
 
         $from = new BuyerIdentity();
         $from->setRole(BuyerIdentity::ROLE_FROM);
@@ -87,6 +94,9 @@ final readonly class TestCatalog
      * Creates a buyer linked to the default fixture customer (shop@example.com)
      * and the default fixture channel (FASHION_WEB), ready for full E2E tests.
      *
+     * @param list<string> $returnDomains
+     * @param list<string> $iframeOrigins
+     *
      * @return array{buyer: Buyer, secret: string}
      */
     public function createBuyerWithCustomer(
@@ -94,12 +104,16 @@ final readonly class TestCatalog
         string $fromIdentity = 'test-buyer-e2e@example.com',
         string $senderDomain = 'AribaNetworkUserId',
         string $senderIdentity = 'test-system-e2e@example.com',
+        array $returnDomains = ['ariba.example.com', 'localhost'],
+        array $iframeOrigins = [],
     ): array {
         ['buyer' => $buyer, 'secret' => $secret] = $this->createBuyer(
             $fromDomain,
             $fromIdentity,
             $senderDomain,
             $senderIdentity,
+            $returnDomains,
+            $iframeOrigins,
         );
 
         $em = $this->container->get(EntityManagerInterface::class);

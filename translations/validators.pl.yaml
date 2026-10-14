@@ -9,3 +9,8 @@ tmonier_punchout:
             unknown: 'Brak klienta o tym adresie e-mail.'
         identity:
             taken: 'Ta tożsamość jest już używana przez innego kupującego PunchOut.'
+        return_domains:
+            not_blank: 'Podaj co najmniej jedną dozwoloną domenę powrotu.'
+            invalid: 'Nieprawidłowa domena: użyj ariba.com lub *.ariba.com.'
+        iframe_origins:
+            invalid: 'Nieprawidłowe źródło: użyj https://host (np. https://s1.ariba.com).'

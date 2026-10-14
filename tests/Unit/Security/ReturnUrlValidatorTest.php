@@ -92,13 +92,13 @@ final class ReturnUrlValidatorTest extends TestCase
     }
 
     #[Test]
-    public function it_accepts_any_domain_when_whitelist_is_empty(): void
+    public function it_refuses_any_domain_when_the_whitelist_is_empty(): void
     {
         $buyer = $this->createMock(BuyerInterface::class);
         $buyer->method('getReturnDomains')->willReturn([]);
 
+        $this->expectException(InvalidReturnUrlException::class);
         $this->validator->validate('https://any.example.com/return', $buyer);
-        $this->addToAssertionCount(1);
     }
 
     #[Test]
