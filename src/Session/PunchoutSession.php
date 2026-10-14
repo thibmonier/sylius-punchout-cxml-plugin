@@ -48,6 +48,12 @@ class PunchoutSession implements PunchoutSessionInterface
 
     private ?OrderInterface $cart = null;
 
+    /** R4: buyer's From domain (from cXML Header/From/Credential) */
+    private string $fromDomain = '';
+
+    /** R4: buyer's From identity (from cXML Header/From/Credential) */
+    private string $fromIdentity = '';
+
     private \DateTimeImmutable $createdAt;
 
     private \DateTimeImmutable $updatedAt;
@@ -172,6 +178,26 @@ class PunchoutSession implements PunchoutSessionInterface
     public function setCart(?OrderInterface $cart): void
     {
         $this->cart = $cart;
+    }
+
+    public function getFromDomain(): string
+    {
+        return $this->fromDomain;
+    }
+
+    public function setFromDomain(string $fromDomain): void
+    {
+        $this->fromDomain = $fromDomain;
+    }
+
+    public function getFromIdentity(): string
+    {
+        return $this->fromIdentity;
+    }
+
+    public function setFromIdentity(string $fromIdentity): void
+    {
+        $this->fromIdentity = $fromIdentity;
     }
 
     public function isPending(): bool

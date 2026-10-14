@@ -113,7 +113,7 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::FORBIDDEN, 'Return URL not allowed');
         }
 
-        // Create session and issue start token
+        // Create session and issue start token (R4: persist buyer From identities)
         $session = $this->sessionFactory->create(
             $buyer,
             $setupData->operation,
@@ -121,6 +121,8 @@ final readonly class CxmlEndpointAction
             $setupData->browserFormPostUrl,
             $setupData->extrinsics,
             $setupData->itemsOut,
+            $setupData->fromDomain,
+            $setupData->fromIdentity,
         );
 
         $token = $this->startTokenIssuer->issue($session, $this->startTokenTtl);

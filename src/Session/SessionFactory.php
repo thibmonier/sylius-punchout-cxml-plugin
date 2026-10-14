@@ -8,6 +8,9 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
 
 /**
  * Creates a new PunchoutSession from a parsed setup request.
+ *
+ * R4: fromDomain/fromIdentity are persisted on the session so that
+ * TransferAction can build a correct cXML PunchOutOrderMessage header.
  */
 final class SessionFactory
 {
@@ -22,6 +25,8 @@ final class SessionFactory
         string $returnUrl,
         array $extrinsics = [],
         array $itemsOut = [],
+        string $fromDomain = '',
+        string $fromIdentity = '',
     ): PunchoutSession {
         $session = new PunchoutSession();
         $session->setBuyer($buyer);
@@ -30,6 +35,8 @@ final class SessionFactory
         $session->setReturnUrl($returnUrl);
         $session->setExtrinsics($extrinsics);
         $session->setItemsOut($itemsOut);
+        $session->setFromDomain($fromDomain);
+        $session->setFromIdentity($fromIdentity);
 
         return $session;
     }
