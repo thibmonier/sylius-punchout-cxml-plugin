@@ -70,6 +70,25 @@ final class PunchoutHardeningTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testAnAbandonedSessionExpires(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();
+        $this->startPunchout($buyer, $secret);
+        $punchoutCartId = $this->currentCart()['id'];
+        $session = $this->entityManager()->getRepository(PunchoutSession::class)->findOneBy([], ['id' => 'DESC']);
+        self::assertInstanceOf(PunchoutSession::class, $session);
+        $this->entityManager()->getConnection()->executeStatement(
+            'UPDATE tmonier_punchout_session SET created_at = :createdAt WHERE id = :id',
+            ['createdAt' => (new \DateTimeImmutable('-9 hours'))->format('Y-m-d H:i:s'), 'id' => $session->getId()],
+        );
+        $this->entityManager()->clear();
+
+        self::assertNotSame($punchoutCartId, $this->currentCart()['id']);
+        $session = $this->entityManager()->find(PunchoutSession::class, $session->getId());
+        self::assertInstanceOf(PunchoutSession::class, $session);
+        self::assertSame(PunchoutSession::STATUS_EXPIRED, $session->getStatus());
+    }
+
     public function testABuyerWithoutChannelCannotOpenASession(): void
     {
         ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();

@@ -6,10 +6,11 @@
 PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-> **Status: in development, not released.** Available today (sprint 1): cXML `create` PunchOut —
-> setup, session, cart transfer and cancel, Sylius checkout blocked during the session — buyer admin
-> and buyer simulator. Coming next: replay protection, rate limiting, mandatory return domains,
-> iframe support, `edit` / `inspect`, SAP OCI, exchange log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
+> **Status: in development, not released.** Available today (sprints 1 and 2): cXML `create`
+> PunchOut — setup with replay protection and rate limiting, session (iframe ready), cart transfer and
+> cancel, Sylius checkout replaced by the transfer — buyer admin (secret rotation, several identities,
+> mandatory return domains) and buyer simulator. Coming next: `edit` / `inspect`, UNSPSC and units,
+> SAP OCI, exchange log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
@@ -24,8 +25,11 @@ Jaggaer, Oracle…), shop at their own prices and send the cart back to their pu
    During the session the Sylius checkout leads back to the cart: orders are placed in the
    procurement system.
 
-The return URL must be HTTPS and match the buyer's allowed domains; it is checked at setup time and
-again before the cart is sent. The setup endpoint never opens a session (no cookie).
+The setup endpoint never opens a session (no cookie), is rate limited per address (HTTP 429) and
+refuses replayed requests (same `payloadID`, or a `timestamp` outside the replay window). The return
+URL must be HTTPS and match one of the buyer's allowed domains (deny by default); it is checked at
+setup time and again before the cart is sent. An open PunchOut session expires after
+`session_lifetime`.
 
 ## Requirements
 
@@ -62,7 +66,11 @@ tmonier_sylius_punchout_cxml:
         domain: 'NetworkId'
         identity: '%env(PUNCHOUT_SUPPLIER_ID)%'
     start_token_ttl: 300             # seconds
+    session_lifetime: 28800          # seconds an open PunchOut session lasts
+    replay_window: 900               # accepted clock skew of the setup timestamp, in seconds
     max_request_bytes: 262144        # 256 KiB
+    rate_limits:
+        setup: { limit: 30, interval: '1 minute' }   # per client address
     keep_transferred_carts: false
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
@@ -70,10 +78,31 @@ tmonier_sylius_punchout_cxml:
 ## Setting up a buyer
 
 In the admin, **PunchOut buyers > Create**: code, name, channel, the Sylius customer the sessions log
-in as (mandatory), the buyer's `From` and `Sender` identities and the allowed return domains. The
-shared secret is generated on creation and **shown once**; *Regenerate the secret* revokes it and
-shows a new one. Give the procurement system your setup URL (`https://<shop>/punchout/cxml`), your
-supplier identity and the secret.
+in as (mandatory), the buyer's `From` and `Sender` identities (one `domain identity` per line, e.g.
+`NetworkId AN01000000001`), the allowed return domains (`ariba.com` for the domain and its
+subdomains, `*.ariba.com` for the subdomains only) and, if the procurement system shows the shop in
+an iframe, its origins (`https://s1.ariba.com`).
+
+The shared secret is generated on creation and **shown once**. *Generate a new secret* adds one next
+to the current one (rotation without downtime: at most two are active), then revoke the old one; a
+secret imposed by the procurement system can be entered instead (16 characters minimum). Give the
+procurement system your setup URL (`https://<shop>/punchout/cxml`), your supplier identity and the
+secret.
+
+## Iframe (SAP Ariba)
+
+During a PunchOut session only, shop pages may be framed by the buyer's iframe origins (CSP
+`frame-ancestors`; `X-Frame-Options` stays everywhere else). The browser only sends the session
+cookie to an iframe of another site when it is `SameSite=None; Secure`, which the application must
+configure (HTTPS required):
+
+```yaml
+# config/packages/framework.yaml
+framework:
+    session:
+        cookie_samesite: none
+        cookie_secure: true
+```
 
 ## Development
 

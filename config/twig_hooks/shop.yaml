@@ -5,3 +5,16 @@ sylius_twig_hooks:
             tmonier_punchout_session:
                 template: '@TmonierSyliusPunchoutCxmlPlugin/shop/cart/punchout_session.html.twig'
                 priority: 200
+
+        # US-014: in a PunchOut session the Sylius checkout gives way to the transfer.
+        'sylius_shop.cart.index.content.form.sections.general#right':
+            checkout:
+                condition: "@=not is_granted('PUNCHOUT_SESSION')"
+
+        'sylius_shop.base.offcanvas.cart':
+            footer:
+                condition: "@=not is_granted('PUNCHOUT_SESSION')"
+            tmonier_punchout_footer:
+                template: '@TmonierSyliusPunchoutCxmlPlugin/shop/offcanvas/footer.html.twig'
+                condition: "@=is_granted('PUNCHOUT_SESSION')"
+                priority: 0

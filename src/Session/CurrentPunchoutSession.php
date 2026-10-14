@@ -22,6 +22,7 @@ final readonly class CurrentPunchoutSession
         private RequestStack $requestStack,
         private EntityManagerInterface $entityManager,
         private TokenStorageInterface $tokenStorage,
+        private int $sessionLifetime = 28800,
     ) {
     }
 
@@ -41,6 +42,14 @@ final readonly class CurrentPunchoutSession
         /** @var PunchoutSession|null $punchoutSession */
         $punchoutSession = $this->entityManager->find(PunchoutSession::class, $id);
         if ($punchoutSession === null || !$punchoutSession->isActive()) {
+            return null;
+        }
+
+        // An abandoned PunchOut session does not stay open forever (US-017).
+        if ($punchoutSession->getCreatedAt()->getTimestamp() + $this->sessionLifetime < time()) {
+            $punchoutSession->setStatus(PunchoutSession::STATUS_EXPIRED);
+            $this->entityManager->flush();
+
             return null;
         }
 

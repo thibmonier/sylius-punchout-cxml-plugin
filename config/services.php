@@ -29,6 +29,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Fixture\PunchoutDemoFixture;
 use Tmonier\SyliusPunchoutCxmlPlugin\Menu\AdminMenuListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\PunchoutSessionVoter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
@@ -81,7 +82,8 @@ return static function (ContainerConfigurator $container): void {
 
     // Session
     $services->set(SessionFactory::class);
-    $services->set(CurrentPunchoutSession::class);
+    $services->set(CurrentPunchoutSession::class)
+        ->arg('$sessionLifetime', '%tmonier_punchout.session_lifetime%');
     $services->set(StartTokenIssuer::class)->public();
     $services->set(StartTokenConsumer::class);
     $services->set(ShopperAuthenticator::class);
@@ -151,6 +153,9 @@ return static function (ContainerConfigurator $container): void {
     // Shop: PunchOut pages may be framed by the buyer's origins only (US-016)
     $services->set(FrameHeadersListener::class)
         ->tag('kernel.event_listener', ['event' => 'kernel.response', 'priority' => -16]);
+
+    // Shop: is_granted('PUNCHOUT_SESSION') for the twig hooks conditions (US-014)
+    $services->set(PunchoutSessionVoter::class)->tag('security.voter');
 
     // Shop: PunchOut session banner
     $services->set(PunchoutExtension::class)->tag('twig.extension');

@@ -188,6 +188,9 @@ final class PunchoutCartIsolationTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-test-tmonier-punchout-banner]'));
         self::assertStringContainsString((string) $buyer->getName(), $crawler->filter('[data-test-tmonier-punchout-banner]')->text());
+        self::assertCount(0, $crawler->filter('[data-test-cart-checkout-button]'), 'No Sylius checkout button in a PunchOut session');
+        self::assertCount(0, $crawler->filter('a[href$="/checkout/"]'), 'The side cart offers no checkout link');
+        self::assertCount(1, $crawler->filter('[data-test-tmonier-punchout-offcanvas-transfer]'), 'The side cart offers the transfer');
 
         $this->client->submit($crawler->filter('[data-test-tmonier-punchout-transfer]')->form());
         self::assertResponseIsSuccessful();
