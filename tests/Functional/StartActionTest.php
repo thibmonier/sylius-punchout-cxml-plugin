@@ -41,7 +41,7 @@ final class StartActionTest extends WebTestCase
         $client->request('GET', '/punchout/start/' . $token);
 
         $response = $client->getResponse();
-        self::assertSame(302, $response->getStatusCode());
+        self::assertSame(303, $response->getStatusCode());
         self::assertStringContainsString('/', $response->headers->get('Location') ?? '');
     }
 
@@ -84,7 +84,7 @@ final class StartActionTest extends WebTestCase
 
         // GET should still work (token not consumed by HEAD)
         $client->request('GET', '/punchout/start/' . $token);
-        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame(303, $client->getResponse()->getStatusCode());
     }
 
     /**
@@ -117,7 +117,7 @@ final class StartActionTest extends WebTestCase
 
         // First GET consumes the token → 302
         $client->request('GET', '/punchout/start/' . $token);
-        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame(303, $client->getResponse()->getStatusCode());
 
         // Second GET on the same token → 404 (already consumed)
         $client->request('GET', '/punchout/start/' . $token);

@@ -46,6 +46,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\SessionFactory;
+use Tmonier\SyliusPunchoutCxmlPlugin\Session\SessionStarter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\ShopperAuthenticator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer;
@@ -110,6 +111,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(StartTokenIssuer::class)->public();
     $services->set(StartTokenConsumer::class);
     $services->set(ShopperAuthenticator::class);
+    $services->set(SessionStarter::class);
 
     $services->alias('tmonier_punchout.session.factory', SessionFactory::class);
     $services->alias('tmonier_punchout.session.current', CurrentPunchoutSession::class);

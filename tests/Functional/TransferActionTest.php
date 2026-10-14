@@ -167,6 +167,6 @@ final class TransferActionTest extends WebTestCase
         self::assertNotEmpty($token);
 
         $client->request('GET', '/punchout/start/' . $token);
-        self::assertSame(302, $client->getResponse()->getStatusCode(), 'Start token must redirect');
+        self::assertSame(303, $client->getResponse()->getStatusCode(), 'Start token must redirect');
     }
 }
