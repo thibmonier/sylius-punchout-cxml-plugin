@@ -63,8 +63,9 @@ trait DatabaseTransactionTrait
     protected function getCsrfToken(string $intent): string
     {
         $this->client->request('GET', '/simulator/csrf-token?intent=' . urlencode($intent));
+        /** @var array{token?: string}|null $data */
         $data = json_decode((string) $this->client->getResponse()->getContent(), true);
 
-        return (string) ($data['token'] ?? '');
+        return is_array($data) ? (string) ($data['token'] ?? '') : '';
     }
 }

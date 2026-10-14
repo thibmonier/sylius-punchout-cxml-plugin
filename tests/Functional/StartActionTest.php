@@ -152,9 +152,7 @@ final class StartActionTest extends WebTestCase
         // Require account verification on the channel
         $channel = $buyer->getChannel();
         self::assertNotNull($channel);
-        if (method_exists($channel, 'setAccountVerificationRequired')) {
-            $channel->setAccountVerificationRequired(true);
-        }
+        $channel->setAccountVerificationRequired(true);
         $em->flush();
 
         $session = new \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession();

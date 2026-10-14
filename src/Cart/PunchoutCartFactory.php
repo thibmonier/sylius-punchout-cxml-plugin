@@ -43,9 +43,7 @@ final readonly class PunchoutCartFactory
         $cart->setCustomer($customer);
         $cart->setState('cart');
 
-        if (method_exists($cart, 'setCheckoutState')) {
-            $cart->setCheckoutState('cart');
-        }
+        $cart->setCheckoutState('cart');
 
         return $cart;
     }

@@ -64,10 +64,9 @@ final readonly class ShopperAuthenticator
 
         // R7: verify the shopper's email when the channel requires it
         if (
-            $channel instanceof ChannelInterface
-            && method_exists($channel, 'isAccountVerificationRequired')
-            && $channel->isAccountVerificationRequired()
-            && !$shopUser->isVerified()
+            $channel instanceof ChannelInterface &&
+            $channel->isAccountVerificationRequired() &&
+            !$shopUser->isVerified()
         ) {
             throw new \RuntimeException('Shop user account is not verified');
         }
