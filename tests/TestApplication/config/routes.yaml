@@ -3,3 +3,6 @@ tmonier_punchout:
 
 tmonier_punchout_simulator:
     resource: "@TmonierSyliusPunchoutCxmlPlugin/tests/TestApplication/config/routes/simulator.yaml"
+
+tmonier_sylius_company_accounts:
+    resource: "@TmonierSyliusCompanyAccountsPlugin/config/routes.yaml"

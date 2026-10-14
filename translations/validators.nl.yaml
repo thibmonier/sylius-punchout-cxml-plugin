@@ -7,6 +7,7 @@ tmonier_punchout:
         customer:
             not_blank: 'Een Sylius-klant is verplicht.'
             unknown: 'Geen klant met dit e-mailadres.'
+            not_company_member: 'De klant moet een actief lid van het gekozen bedrijf zijn.'
         identity:
             taken: 'Deze identiteit wordt al gebruikt door een andere PunchOut-koper.'
             format: 'Elke regel moet een domein en een identiteit bevatten, gescheiden door een spatie.'

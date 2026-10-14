@@ -16,6 +16,9 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 {
     use PrependDoctrineMigrationsTrait;
 
+    /** tmonier/sylius-company-accounts-plugin: buyers can be attached to its companies (US-006). */
+    public const COMPANY_ACCOUNTS_BUNDLE = \Tmonier\SyliusCompanyAccountsPlugin\TmonierSyliusCompanyAccountsPlugin::class;
+
     public function load(array $configs, ContainerBuilder $container): void
     {
         /** @var array{supplier_identity: array{domain: string, identity: string}, start_token_ttl: int, session_lifetime: int, replay_window: int, max_request_bytes: int, max_items_out: int, retention_days: int, log_bodies: bool, keep_transferred_carts: bool, rate_limits: array<string, mixed>, allowed_extrinsics: list<string>, insecure_return_url_hosts: list<string>, driver: string, resources: array<string, mixed>} $config */
@@ -32,6 +35,12 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
         $loader->load('services.php');
+
+        /** @var array<string, class-string> $bundles */
+        $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : [];
+        if (in_array(self::COMPANY_ACCOUNTS_BUNDLE, $bundles, true)) {
+            $loader->load('services/company_accounts.php');
+        }
     }
 
     public function prepend(ContainerBuilder $container): void

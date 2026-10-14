@@ -7,6 +7,7 @@ tmonier_punchout:
         customer:
             not_blank: 'A Sylius customer is required.'
             unknown: 'No customer with this e-mail address.'
+            not_company_member: 'The customer must be an active member of the chosen company.'
         identity:
             taken: 'This identity is already used by another PunchOut buyer.'
             format: 'Each line must contain a domain and an identity separated by a space.'

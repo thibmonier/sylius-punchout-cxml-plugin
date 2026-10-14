@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Doctor;
 
 use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Company\CompanyDirectoryInterface;
 
 /** US-028: what keeps a buyer from opening a PunchOut session. */
-final class BuyerChecker
+final readonly class BuyerChecker
 {
+    public function __construct(private ?CompanyDirectoryInterface $companyDirectory = null)
+    {
+    }
+
     /** @return list<string> the problems, empty when the buyer can be used */
     public function problems(BuyerInterface $buyer): array
     {
@@ -43,9 +49,14 @@ final class BuyerChecker
     /** @return list<string> */
     private function shopUserProblems(BuyerInterface $buyer, ?ChannelInterface $channel): array
     {
-        $user = $buyer->getCustomer()?->getUser();
-        if (!$user instanceof ShopUserInterface) {
-            return [$buyer->getCustomer() instanceof \Sylius\Component\Core\Model\CustomerInterface ? 'the Sylius customer has no shop account' : 'no Sylius customer'];
+        $customer = $buyer->getCustomer();
+        $user = $customer?->getUser();
+        if (!$customer instanceof CustomerInterface || !$user instanceof ShopUserInterface) {
+            return [$customer instanceof CustomerInterface ? 'the Sylius customer has no shop account' : 'no Sylius customer'];
+        }
+        $company = $buyer->getCompanyId();
+        if ($company !== null && $company !== '' && $this->companyDirectory instanceof CompanyDirectoryInterface && !$this->companyDirectory->isActiveMember($customer, $company)) {
+            return [sprintf('the Sylius customer is not an active member of the company "%s"', $company)];
         }
         if (!$user->isEnabled()) {
             return ['the shop account of the customer is disabled'];

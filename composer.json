@@ -40,7 +40,11 @@
         "symfony/runtime": "^6.4 || ^7.4 || ^8.0",
         "symfony/web-profiler-bundle": "^6.4 || ^7.4 || ^8.0",
         "symfony/webpack-encore-bundle": "^2.2",
+        "tmonier/sylius-company-accounts-plugin": "^1.1",
         "winzou/state-machine-bundle": "^0.6"
+    },
+    "suggest": {
+        "tmonier/sylius-company-accounts-plugin": "Attach PunchOut buyers to a company: the linked customer must be an active member of it"
     },
     "config": {
         "sort-packages": true,

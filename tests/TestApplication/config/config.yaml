@@ -1,4 +1,5 @@
 imports:
+    - { resource: "@TmonierSyliusCompanyAccountsPlugin/config/config.yaml" }
     - { resource: "@TmonierSyliusPunchoutCxmlPlugin/config/config.yaml" }
     - { resource: "@TmonierSyliusPunchoutCxmlPlugin/tests/TestApplication/config/services.yaml" }
 

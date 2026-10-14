@@ -59,6 +59,8 @@ tmonier_punchout:
             default_unspsc: 'Codice UNSPSC predefinito'
             oci_username: 'Nome utente OCI'
             oci_username_help: "Solo acquirenti OCI: lo USERNAME inviato da SAP. La PASSWORD è il segreto dell'acquirente. URL di ingresso: /punchout/oci/<code>."
+            company: Azienda
+            company_help: 'Account aziendali: il cliente collegato deve essere un membro attivo di questa azienda.'
         classification:
             unspsc: 'Codice UNSPSC (PunchOut)'
             unspsc_help: '8 cifre, es. 56101504. I prodotti ereditano il codice della tassonomia principale o dei suoi genitori.'

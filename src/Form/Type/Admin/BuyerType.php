@@ -31,6 +31,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Company\CompanyDirectoryInterface;
 
 /**
  * Admin form of a PunchOut buyer: its `From` and `Sender` identities (one "domain identity" per line,
@@ -54,6 +55,7 @@ final class BuyerType extends AbstractResourceType
         private readonly RepositoryInterface $customerRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly TranslatorInterface $translator,
+        private readonly ?CompanyDirectoryInterface $companyDirectory = null,
     ) {
         parent::__construct($dataClass, $validationGroups);
     }
@@ -161,8 +163,33 @@ final class BuyerType extends AbstractResourceType
         $builder->get('returnDomains')->addModelTransformer($lines);
         $builder->get('iframeOrigins')->addModelTransformer($lines);
 
+        if ($this->companyDirectory instanceof CompanyDirectoryInterface) {
+            $builder->add('companyId', ChoiceType::class, [
+                'label' => 'tmonier_punchout.form.buyer.company',
+                'help' => 'tmonier_punchout.form.buyer.company_help',
+                'required' => false,
+                'choices' => array_flip($this->companyDirectory->companies()),
+                'choice_translation_domain' => false,
+            ]);
+            $builder->addEventListener(FormEvents::POST_SUBMIT, $this->checkCompanyMember(...), 10);
+        }
+
         $builder->addEventListener(FormEvents::POST_SET_DATA, $this->fillIdentities(...));
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->applyIdentities(...));
+    }
+
+    /** US-006: the customer of a buyer attached to a company is an active member of this company. */
+    private function checkCompanyMember(FormEvent $event): void
+    {
+        $buyer = $event->getData();
+        $company = $buyer instanceof BuyerInterface ? $buyer->getCompanyId() : null;
+        $customer = $buyer instanceof BuyerInterface ? $buyer->getCustomer() : null;
+        if ($company === null || $company === '' || !$customer instanceof CustomerInterface || !$this->companyDirectory instanceof CompanyDirectoryInterface) {
+            return;
+        }
+        if (!$this->companyDirectory->isActiveMember($customer, $company)) {
+            $event->getForm()->get('customer')->addError(new FormError($this->translator->trans('tmonier_punchout.buyer.customer.not_company_member', [], 'validators')));
+        }
     }
 
     /**

@@ -25,11 +25,11 @@ final class GdprCommandsTest extends WebTestCase
         $oldLog = $this->log($buyer, null, 'x', '-120 days');
         $recentLog = $this->log($buyer, null, 'x', '-10 days');
 
-        $dryRun = $this->runCommand('tmonier:punchout:purge', ['--dry-run' => true, '--days' => '90']);
+        $dryRun = $this->executeCommand('tmonier:punchout:purge', ['--dry-run' => true, '--days' => '90']);
         self::assertStringContainsString('Would delete', $dryRun);
         self::assertTrue($this->exists('tmonier_punchout_session', $old), 'A dry run deletes nothing');
 
-        $this->runCommand('tmonier:punchout:purge', ['--days' => '90']);
+        $this->executeCommand('tmonier:punchout:purge', ['--days' => '90']);
         self::assertFalse($this->exists('tmonier_punchout_session', $old));
         self::assertFalse($this->exists('tmonier_punchout_message_log', $oldLog));
         self::assertTrue($this->exists('tmonier_punchout_session', $recent));
@@ -46,7 +46,7 @@ final class GdprCommandsTest extends WebTestCase
         $setupLog = $this->log($buyer, null, '<Extrinsic name="UserEmail">c***@bigcorp.example</Extrinsic>', '-1 day');
         $otherLog = $this->log($buyer, $other, '<Extrinsic name="UserEmail">p***@bigcorp.example</Extrinsic>', '-1 day');
 
-        $output = $this->runCommand('tmonier:punchout:erase', ['email' => 'claire.martin@bigcorp.example']);
+        $output = $this->executeCommand('tmonier:punchout:erase', ['email' => 'claire.martin@bigcorp.example']);
 
         self::assertStringContainsString('Erased the personal data of 1 sessions and 2 journal entries', $output);
         self::assertSame('[]', $this->value('tmonier_punchout_session', 'extrinsics', $named));
@@ -101,7 +101,7 @@ final class GdprCommandsTest extends WebTestCase
     }
 
     /** @param array<string, mixed> $input */
-    private function runCommand(string $command, array $input): string
+    private function executeCommand(string $command, array $input): string
     {
         $tester = $this->tester($command);
         $tester->execute($input);

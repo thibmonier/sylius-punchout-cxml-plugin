@@ -16,6 +16,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\BuyerSecretController;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Command\DoctorCommand;
+use Tmonier\SyliusPunchoutCxmlPlugin\Company\CompanyDirectoryInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Command\EraseCustomerCommand;
 use Tmonier\SyliusPunchoutCxmlPlugin\Command\PurgeCommand;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\InspectAction;
@@ -193,7 +194,7 @@ return static function (ContainerConfigurator $container): void {
 
     // Admin: buyer form, first secret on creation, secret regeneration
     $services->set(BuyerType::class)
-        ->args(['%tmonier_punchout.model.buyer.class%', ['Default'], service('sylius.repository.customer'), service('doctrine.orm.entity_manager'), service('translator')])
+        ->args(['%tmonier_punchout.model.buyer.class%', ['Default'], service('sylius.repository.customer'), service('doctrine.orm.entity_manager'), service('translator'), service(CompanyDirectoryInterface::class)->nullOnInvalid()])
         ->tag('form.type');
     $services->set(SecretIssuer::class);
     $services->set(BuyerSecretListener::class)
@@ -228,7 +229,7 @@ return static function (ContainerConfigurator $container): void {
     // Retention, erasure (US-025) and diagnostic (US-028)
     $services->set(RetentionPurger::class)->arg('$connection', service('doctrine.dbal.default_connection'));
     $services->set(PersonalDataEraser::class)->arg('$connection', service('doctrine.dbal.default_connection'));
-    $services->set(BuyerChecker::class);
+    $services->set(BuyerChecker::class)->arg('$companyDirectory', service(CompanyDirectoryInterface::class)->nullOnInvalid());
     $services->set(PurgeCommand::class)->arg('$retentionDays', '%tmonier_punchout.retention_days%');
     $services->set(EraseCustomerCommand::class);
     $services->set(DoctorCommand::class)->arg('$parameters', service('parameter_bag'));

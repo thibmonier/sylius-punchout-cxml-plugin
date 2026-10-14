@@ -7,11 +7,14 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Model\AdminUserInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\Customer;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
+use Tmonier\SyliusCompanyAccountsPlugin\Entity\Company;
+use Tmonier\SyliusCompanyAccountsPlugin\Entity\CompanyMember;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
 
@@ -134,7 +137,41 @@ final class BuyerAdminTest extends WebTestCase
         self::assertSame(['oci', 'SAP_SRM', 0], [$buyer->getProtocol(), $buyer->getOciUsername(), $buyer->getIdentities()->count()]);
     }
 
-    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = '', string $protocol = 'cxml', string $ociUsername = ''): void
+    public function testTheCustomerOfABuyerAttachedToACompanyIsAnActiveMemberOfIt(): void
+    {
+        $em = $this->entityManager();
+        $suffix = bin2hex(random_bytes(3));
+        $companies = [];
+        foreach (['member', 'other'] as $name) {
+            $company = new Company();
+            $company->setCode('punchout-' . $name . '-' . $suffix);
+            $company->setName('BigCorp ' . $name . ' ' . $suffix);
+            $company->setEnabled(true);
+            $em->persist($company);
+            $companies[$name] = $company;
+        }
+        $customer = new Customer();
+        $customer->setEmail('buyer-' . $suffix . '@bigcorp.example');
+        $em->persist($customer);
+        $member = new CompanyMember();
+        $member->setCompany($companies['member']);
+        $member->setCustomer($customer);
+        $member->setRole(CompanyMember::ROLE_BUYER);
+        $member->setEnabled(true);
+        $em->persist($member);
+        $em->flush();
+        $this->loginAdmin();
+
+        $this->submitCreateForm('company-' . $suffix, 'x-' . $suffix . '@bigcorp.example', customer: (string) $customer->getEmail(), company: (string) $companies['other']->getCode());
+        self::assertStringContainsString('The customer must be an active member of the chosen company.', $this->errors());
+
+        $code = 'company-ok-' . $suffix;
+        $this->submitCreateForm($code, 'y-' . $suffix . '@bigcorp.example', customer: (string) $customer->getEmail(), company: (string) $companies['member']->getCode());
+        self::assertTrue($this->client->getResponse()->isRedirect(), $this->errors());
+        self::assertSame($companies['member']->getCode(), $this->buyer($code)->getCompanyId());
+    }
+
+    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = '', string $protocol = 'cxml', string $ociUsername = '', ?string $company = null): void
     {
         $crawler = $this->client->request('GET', '/admin/punchout-buyers/new');
         self::assertResponseIsSuccessful();
@@ -143,6 +180,9 @@ final class BuyerAdminTest extends WebTestCase
         $form['tmonier_punchout_buyer[name]'] = 'BigCorp Ariba';
         $form['tmonier_punchout_buyer[protocol]'] = $protocol;
         $form['tmonier_punchout_buyer[ociUsername]'] = $ociUsername;
+        if ($company !== null) {
+            $form['tmonier_punchout_buyer[companyId]'] = $company;
+        }
         $form['tmonier_punchout_buyer[channel]'] = (string) $this->channel()->getCode();
         $form['tmonier_punchout_buyer[customer]'] = $customer ?? (string) $this->customer()->getEmail();
         $form['tmonier_punchout_buyer[fromIdentities]'] = $fromIdentity !== '' ? 'NetworkId ' . $fromIdentity : '';

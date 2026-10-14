@@ -7,6 +7,7 @@ tmonier_punchout:
         customer:
             not_blank: 'Klient Sylius jest wymagany.'
             unknown: 'Brak klienta o tym adresie e-mail.'
+            not_company_member: 'Klient musi być aktywnym członkiem wybranej firmy.'
         identity:
             taken: 'Ta tożsamość jest już używana przez innego kupującego PunchOut.'
             format: 'Każdy wiersz musi zawierać domenę i tożsamość oddzielone spacją.'

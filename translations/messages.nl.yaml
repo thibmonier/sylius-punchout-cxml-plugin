@@ -59,6 +59,8 @@ tmonier_punchout:
             default_unspsc: 'Standaard UNSPSC-code'
             oci_username: OCI-gebruikersnaam
             oci_username_help: 'Alleen OCI-kopers: de USERNAME die SAP verstuurt. Het PASSWORD is het geheim van de koper. Instap-URL: /punchout/oci/<code>.'
+            company: Bedrijf
+            company_help: 'Bedrijfsaccounts: de gekoppelde klant moet een actief lid van dit bedrijf zijn.'
         classification:
             unspsc: 'UNSPSC-code (PunchOut)'
             unspsc_help: '8 cijfers, bijv. 56101504. Producten erven de code van hun hoofdtaxon of de bovenliggende taxons.'

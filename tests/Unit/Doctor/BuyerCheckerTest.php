@@ -7,10 +7,12 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Unit\Doctor;
 use PHPUnit\Framework\TestCase;
 use Sylius\Component\Core\Model\Channel;
 use Sylius\Component\Core\Model\Customer;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\ShopUser;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerCredential;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
+use Tmonier\SyliusPunchoutCxmlPlugin\Company\CompanyDirectoryInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Doctor\BuyerChecker;
 
 final class BuyerCheckerTest extends TestCase
@@ -48,6 +50,26 @@ final class BuyerCheckerTest extends TestCase
         $buyer->getCustomer()?->getUser()?->setVerifiedAt(null);
 
         self::assertSame(['the shop account of the customer is not verified (required by the channel)'], (new BuyerChecker())->problems($buyer));
+    }
+
+    public function testTheCustomerMustStillBelongToTheCompanyOfTheBuyer(): void
+    {
+        $directory = new class() implements CompanyDirectoryInterface {
+            public function companies(): array
+            {
+                return ['bigcorp' => 'BigCorp'];
+            }
+
+            public function isActiveMember(CustomerInterface $customer, string $companyCode): bool
+            {
+                return false;
+            }
+        };
+        $buyer = $this->buyer();
+        $buyer->setCompanyId('bigcorp');
+
+        self::assertSame(['the Sylius customer is not an active member of the company "bigcorp"'], (new BuyerChecker($directory))->problems($buyer));
+        self::assertSame([], (new BuyerChecker())->problems($buyer), 'Without company accounts the company is not checked');
     }
 
     private function buyer(bool $identities = true): Buyer

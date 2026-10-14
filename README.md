@@ -125,6 +125,13 @@ secret imposed by the procurement system can be entered instead (16 characters m
 procurement system your setup URL (`https://<shop>/punchout/cxml`), your supplier identity and the
 secret.
 
+## Company accounts
+
+With [tmonier/sylius-company-accounts-plugin](https://github.com/thibmonier/sylius-company-accounts-plugin)
+installed, a buyer can be attached to a company: its linked customer must then be an active member
+of that company (the doctor command reports it when this is no longer true). Without that plugin the
+company field does not appear.
+
 ## Console commands
 
 ```bash
