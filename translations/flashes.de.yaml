@@ -1,4 +1,7 @@
 tmonier_punchout:
     ui:
         session:
-            checkout_blocked: "Bestellt wird in Ihrem Beschaffungssystem: Übertragen Sie Ihren Warenkorb dorthin."
+            checkout_blocked: 'Bestellt wird in Ihrem Beschaffungssystem: Übertragen Sie Ihren Warenkorb dorthin.'
+    secret:
+        too_short: 'Das Secret muss mindestens 16 Zeichen lang sein.'
+        set: 'Das Secret wurde gespeichert.'

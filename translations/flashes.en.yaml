@@ -1,4 +1,7 @@
 tmonier_punchout:
     ui:
         session:
-            checkout_blocked: "Orders are placed in your procurement system: transfer your cart to it."
+            checkout_blocked: 'Orders are placed in your procurement system: transfer your cart to it.'
+    secret:
+        too_short: 'The secret must have at least 16 characters.'
+        set: 'The secret has been saved.'

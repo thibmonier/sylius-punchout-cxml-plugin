@@ -12,7 +12,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartContext;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
-use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\RegenerateSecretAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\BuyerSecretController;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
@@ -135,10 +135,10 @@ return static function (ContainerConfigurator $container): void {
     $services->set(SecretIssuer::class);
     $services->set(BuyerSecretListener::class)
         ->tag('kernel.event_listener', ['event' => 'tmonier_punchout.buyer.pre_create', 'method' => 'onPreCreate']);
-    $services->set(RegenerateSecretAction::class)
+    $services->set(BuyerSecretController::class)
         ->tag('controller.service_arguments')
         ->public();
-    $services->alias('tmonier_punchout.controller.admin_regenerate_secret', RegenerateSecretAction::class)->public();
+    $services->alias('tmonier_punchout.controller.admin_buyer_secret', BuyerSecretController::class)->public();
 
     // Shop: no Sylius checkout during a PunchOut session (US-015)
     $services->set(CheckoutBlockerListener::class)

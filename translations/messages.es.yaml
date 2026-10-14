@@ -10,8 +10,15 @@ tmonier_punchout:
         secret:
             title: 'Nuevo secreto compartido'
             help: 'Cópielo ahora y entréguelo al comprador: no se volverá a mostrar (solo se guarda su huella).'
-            active: 'Secretos activos: %count%'
-            regenerate: 'Regenerar el secreto'
+            regenerate: 'Generar un nuevo secreto'
+            section: 'Secretos compartidos'
+            rotation_help: 'Un nuevo secreto se añade junto al actual para que el sistema de compras cambie sin interrupción; revoque después el antiguo. Como máximo dos secretos activos.'
+            created: 'Secreto creado el %date%'
+            revoke: Revocar
+            none: 'Ningún secreto activo: el comprador no puede abrir una sesión.'
+            or: o
+            set: 'Usar este secreto'
+            set_placeholder: 'Secreto impuesto por el sistema de compras'
     form:
         buyer:
             name: Nombre
@@ -24,14 +31,12 @@ tmonier_punchout:
             customer_help: 'Las sesiones PunchOut inician sesión como este cliente: se aplican sus precios y grupos.'
             return_domains: 'Dominios de retorno permitidos'
             return_domains_help: 'Un dominio por línea: ariba.com (el dominio y sus subdominios) o *.ariba.com (solo subdominios). Obligatorio: el carrito solo se envía a estos dominios.'
-            fromDomain: 'Dominio From'
-            fromIdentity: 'Identidad From (comprador)'
-            senderDomain: 'Dominio Sender'
-            senderIdentity: 'Identidad Sender (red o sistema)'
             identities: 'Identidades cXML'
-            identities_help: 'Tal como las configuró el comprador en su sistema de compras (en SAP Ariba: dominio NetworkId, AribaNetworkUserId…).'
             iframe_origins: 'Orígenes de iframe'
             iframe_origins_help: 'Orígenes autorizados a mostrar la tienda en un iframe durante una sesión PunchOut, uno por línea (p. ej. https://s1.ariba.com).'
+            fromIdentities: 'Identidades From (comprador)'
+            senderIdentities: 'Identidades Sender (red o sistema)'
+            identities_format: 'Una identidad por línea: el dominio y luego la identidad, p. ej. NetworkId AN01000000001 o DUNS 123456789.'
     flash:
         buyer:
             created: 'El comprador PunchOut ha sido creado.'

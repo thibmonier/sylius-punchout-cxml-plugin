@@ -10,8 +10,15 @@ tmonier_punchout:
         secret:
             title: 'Nowy wspólny sekret'
             help: 'Skopiuj go teraz i przekaż kupującemu: nie zostanie ponownie wyświetlony (zapisywany jest tylko jego skrót).'
-            active: 'Aktywne sekrety: %count%'
             regenerate: 'Wygeneruj nowy sekret'
+            section: 'Wspólne sekrety'
+            rotation_help: 'Nowy sekret jest dodawany obok obecnego, aby system zakupowy mógł przejść bez przerwy; następnie unieważnij stary. Aktywne mogą być najwyżej dwa sekrety.'
+            created: 'Sekret utworzony %date%'
+            revoke: Unieważnij
+            none: 'Brak aktywnego sekretu: kupujący nie może otworzyć sesji.'
+            or: lub
+            set: 'Użyj tego sekretu'
+            set_placeholder: 'Sekret narzucony przez system zakupowy'
     form:
         buyer:
             name: Nazwa
@@ -24,14 +31,12 @@ tmonier_punchout:
             customer_help: 'Sesje PunchOut logują się jako ten klient: obowiązują jego ceny i grupy.'
             return_domains: 'Dozwolone domeny powrotu'
             return_domains_help: 'Jedna domena w wierszu: ariba.com (domena i jej subdomeny) lub *.ariba.com (tylko subdomeny). Wymagane: koszyk jest wysyłany tylko do tych domen.'
-            fromDomain: 'Domena From'
-            fromIdentity: 'Tożsamość From (kupujący)'
-            senderDomain: 'Domena Sender'
-            senderIdentity: 'Tożsamość Sender (sieć lub system)'
             identities: 'Tożsamości cXML'
-            identities_help: 'Tak jak skonfigurował je kupujący w swoim systemie zakupowym (w SAP Ariba: domena NetworkId, AribaNetworkUserId…).'
             iframe_origins: 'Źródła iframe'
             iframe_origins_help: 'Źródła, które mogą wyświetlać sklep w ramce iframe podczas sesji PunchOut, jedno w wierszu (np. https://s1.ariba.com).'
+            fromIdentities: 'Tożsamości From (kupujący)'
+            senderIdentities: 'Tożsamości Sender (sieć lub system)'
+            identities_format: 'Jedna tożsamość w wierszu: domena, potem tożsamość, np. NetworkId AN01000000001 lub DUNS 123456789.'
     flash:
         buyer:
             created: 'Nabywca PunchOut został utworzony.'

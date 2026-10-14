@@ -10,8 +10,15 @@ tmonier_punchout:
         secret:
             title: 'Nieuw gedeeld geheim'
             help: 'Kopieer het nu en geef het aan de koper: het wordt niet opnieuw getoond (alleen de hash wordt opgeslagen).'
-            active: 'Actieve geheimen: %count%'
-            regenerate: 'Geheim opnieuw genereren'
+            regenerate: 'Nieuw geheim genereren'
+            section: 'Gedeelde geheimen'
+            rotation_help: 'Een nieuw geheim wordt naast het huidige toegevoegd zodat het inkoopsysteem zonder onderbreking kan overschakelen; trek daarna het oude in. Maximaal twee actieve geheimen.'
+            created: 'Geheim aangemaakt op %date%'
+            revoke: Intrekken
+            none: 'Geen actief geheim: de koper kan geen sessie openen.'
+            or: of
+            set: 'Dit geheim gebruiken'
+            set_placeholder: 'Geheim opgelegd door het inkoopsysteem'
     form:
         buyer:
             name: Naam
@@ -24,14 +31,12 @@ tmonier_punchout:
             customer_help: 'PunchOut-sessies loggen in als deze klant: zijn prijzen en groepen zijn van toepassing.'
             return_domains: 'Toegestane retourdomeinen'
             return_domains_help: 'Eén domein per regel: ariba.com (het domein en zijn subdomeinen) of *.ariba.com (alleen subdomeinen). Verplicht: de winkelwagen wordt alleen naar deze domeinen gestuurd.'
-            fromDomain: From-domein
-            fromIdentity: 'From-identiteit (koper)'
-            senderDomain: Sender-domein
-            senderIdentity: 'Sender-identiteit (netwerk of systeem)'
             identities: cXML-identiteiten
-            identities_help: 'Zoals de koper ze in zijn inkoopsysteem heeft ingesteld (bij SAP Ariba: domein NetworkId, AribaNetworkUserId…).'
             iframe_origins: Iframe-origins
             iframe_origins_help: 'Origins die de winkel tijdens een PunchOut-sessie in een iframe mogen tonen, één per regel (bijv. https://s1.ariba.com).'
+            fromIdentities: 'From-identiteiten (koper)'
+            senderIdentities: 'Sender-identiteiten (netwerk of systeem)'
+            identities_format: 'Eén identiteit per regel: het domein en dan de identiteit, bijv. NetworkId AN01000000001 of DUNS 123456789.'
     flash:
         buyer:
             created: 'PunchOut-koper is aangemaakt.'

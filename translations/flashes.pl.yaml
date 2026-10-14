@@ -1,4 +1,7 @@
 tmonier_punchout:
     ui:
         session:
-            checkout_blocked: "Zamówienie składa się w systemie zakupowym: prześlij do niego koszyk."
+            checkout_blocked: 'Zamówienie składa się w systemie zakupowym: prześlij do niego koszyk.'
+    secret:
+        too_short: 'Sekret musi mieć co najmniej 16 znaków.'
+        set: 'Sekret został zapisany.'

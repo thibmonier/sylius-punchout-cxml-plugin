@@ -114,23 +114,6 @@ final class BuyerAdminTest extends WebTestCase
         self::assertStringContainsString('This identity is already used by another PunchOut buyer.', $this->errors());
     }
 
-    public function testRegeneratingTheSecretRevokesThePreviousOne(): void
-    {
-        $catalog = new TestCatalog(self::getContainer());
-        ['buyer' => $buyer, 'secret' => $oldSecret] = $catalog->createBuyerWithCustomer();
-        $this->loginAdmin();
-
-        $crawler = $this->client->request('GET', '/admin/punchout-buyers/' . $buyer->getId() . '/edit');
-        $this->client->submit($crawler->filter('#tmonier-punchout-regenerate-secret')->form());
-        $this->client->followRedirect();
-        $newSecret = trim($this->client->getCrawler()->filter('[data-test-tmonier-punchout-secret-value]')->text());
-
-        $buyer = $this->buyer($buyer->getCode());
-        self::assertCount(1, $buyer->getActiveCredentials());
-        self::assertTrue(password_verify($newSecret, $buyer->getActiveCredentials()[0]->getPasswordHash()));
-        self::assertFalse(password_verify($oldSecret, $buyer->getActiveCredentials()[0]->getPasswordHash()));
-    }
-
     private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = ''): void
     {
         $crawler = $this->client->request('GET', '/admin/punchout-buyers/new');
@@ -141,10 +124,8 @@ final class BuyerAdminTest extends WebTestCase
         $form['tmonier_punchout_buyer[protocol]'] = 'cxml';
         $form['tmonier_punchout_buyer[channel]'] = (string) $this->channel()->getCode();
         $form['tmonier_punchout_buyer[customer]'] = $customer ?? (string) $this->customer()->getEmail();
-        $form['tmonier_punchout_buyer[fromDomain]'] = 'NetworkId';
-        $form['tmonier_punchout_buyer[fromIdentity]'] = $fromIdentity;
-        $form['tmonier_punchout_buyer[senderDomain]'] = 'NetworkId';
-        $form['tmonier_punchout_buyer[senderIdentity]'] = 'AN-' . bin2hex(random_bytes(3));
+        $form['tmonier_punchout_buyer[fromIdentities]'] = 'NetworkId ' . $fromIdentity;
+        $form['tmonier_punchout_buyer[senderIdentities]'] = 'NetworkId AN-' . bin2hex(random_bytes(3));
         $form['tmonier_punchout_buyer[returnDomains]'] = $returnDomains;
         $form['tmonier_punchout_buyer[iframeOrigins]'] = $iframeOrigins;
         $this->client->submit($form);

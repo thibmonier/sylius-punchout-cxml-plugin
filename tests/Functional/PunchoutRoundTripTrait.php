@@ -14,6 +14,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
  */
 trait PunchoutRoundTripTrait
 {
+    /** @param array{string, string}|null $from From credential (domain, identity) instead of the buyer's first one */
     protected function setupRequestXml(
         BuyerInterface $buyer,
         string $secret,
@@ -23,8 +24,10 @@ trait PunchoutRoundTripTrait
         ?string $timestamp = null,
         string $operation = 'create',
         string $dtdVersion = '1.2.071',
+        ?array $from = null,
     ): string {
-        $from = $this->identity($buyer, BuyerIdentity::ROLE_FROM);
+        $fromIdentity = $this->identity($buyer, BuyerIdentity::ROLE_FROM);
+        [$fromDomain, $fromValue] = $from ?? [$fromIdentity->getDomain(), $fromIdentity->getIdentity()];
         $sender = $this->identity($buyer, BuyerIdentity::ROLE_SENDER);
         $timestamp ??= (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339);
         $payloadId ??= bin2hex(random_bytes(8)) . '@test.local';
@@ -34,7 +37,7 @@ trait PunchoutRoundTripTrait
             <!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/{$dtdVersion}/cXML.dtd">
             <cXML payloadID="{$payloadId}" timestamp="{$timestamp}">
                 <Header>
-                    <From><Credential domain="{$from->getDomain()}"><Identity>{$from->getIdentity()}</Identity></Credential></From>
+                    <From><Credential domain="{$fromDomain}"><Identity>{$fromValue}</Identity></Credential></From>
                     <To><Credential domain="NetworkId"><Identity>supplier</Identity></Credential></To>
                     <Sender>
                         <Credential domain="{$sender->getDomain()}"><Identity>{$sender->getIdentity()}</Identity><SharedSecret>{$secret}</SharedSecret></Credential>

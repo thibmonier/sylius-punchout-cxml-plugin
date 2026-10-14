@@ -1,4 +1,7 @@
 tmonier_punchout:
     ui:
         session:
-            checkout_blocked: "El pedido se realiza en su sistema de compras: transfiera allí su carrito."
+            checkout_blocked: 'El pedido se realiza en su sistema de compras: transfiera allí su carrito.'
+    secret:
+        too_short: 'El secreto debe tener al menos 16 caracteres.'
+        set: 'El secreto se ha guardado.'

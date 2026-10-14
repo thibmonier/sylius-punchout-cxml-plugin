@@ -33,14 +33,15 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
 
 /**
- * Admin form of a PunchOut buyer: one `From` and one `Sender` identity (several identities come with
- * US-002), the Sylius customer the sessions log in as (mandatory, ADR-0003) and the return domains.
+ * Admin form of a PunchOut buyer: its `From` and `Sender` identities (one "domain identity" per line,
+ * several allowed, US-002), the Sylius customer the sessions log in as (mandatory, ADR-0003), the
+ * allowed return domains (US-004) and iframe origins (US-016).
  */
 final class BuyerType extends AbstractResourceType
 {
     private const IDENTITY_FIELDS = [
-        BuyerIdentity::ROLE_FROM => ['fromDomain', 'fromIdentity'],
-        BuyerIdentity::ROLE_SENDER => ['senderDomain', 'senderIdentity'],
+        BuyerIdentity::ROLE_FROM => 'fromIdentities',
+        BuyerIdentity::ROLE_SENDER => 'senderIdentities',
     ];
 
     /**
@@ -101,11 +102,14 @@ final class BuyerType extends AbstractResourceType
             ])
         ;
 
-        foreach (self::IDENTITY_FIELDS as [$domainField, $identityField]) {
-            $builder
-                ->add($domainField, TextType::class, ['mapped' => false, 'label' => 'tmonier_punchout.form.buyer.' . $domainField, 'constraints' => [new NotBlank(), new Length(max: 64)]])
-                ->add($identityField, TextType::class, ['mapped' => false, 'label' => 'tmonier_punchout.form.buyer.' . $identityField, 'constraints' => [new NotBlank(), new Length(max: 255)]])
-            ;
+        foreach (self::IDENTITY_FIELDS as $field) {
+            $builder->add($field, TextareaType::class, [
+                'mapped' => false,
+                'label' => 'tmonier_punchout.form.buyer.' . $field,
+                'help' => 'tmonier_punchout.form.buyer.identities_format',
+                'attr' => ['rows' => 2],
+                'constraints' => [new NotBlank()],
+            ]);
         }
 
         $builder->get('customer')->addModelTransformer(new CallbackTransformer(
@@ -150,13 +154,12 @@ final class BuyerType extends AbstractResourceType
         if (!$buyer instanceof BuyerInterface) {
             return;
         }
-        $form = $event->getForm();
+        $lines = [];
         foreach ($buyer->getIdentities() as $identity) {
-            [$domainField, $identityField] = self::IDENTITY_FIELDS[$identity->getRole()] ?? [null, null];
-            if ($domainField !== null && $identityField !== null) {
-                $form->get($domainField)->setData($identity->getDomain());
-                $form->get($identityField)->setData($identity->getIdentity());
-            }
+            $lines[$identity->getRole()][] = $identity->getDomain() . ' ' . $identity->getIdentity();
+        }
+        foreach (self::IDENTITY_FIELDS as $role => $field) {
+            $event->getForm()->get($field)->setData(implode("\n", $lines[$role] ?? []));
         }
     }
 
@@ -168,34 +171,72 @@ final class BuyerType extends AbstractResourceType
             return;
         }
 
-        foreach (self::IDENTITY_FIELDS as $role => [$domainField, $identityField]) {
-            $domain = trim($this->text($form->get($domainField)));
-            $value = trim($this->text($form->get($identityField)));
-            if ($this->identityBelongsToAnotherBuyer($buyer, $role, $domain, $value)) {
-                $form->get($identityField)->addError(new FormError($this->translator->trans('tmonier_punchout.buyer.identity.taken', [], 'validators')));
-
+        foreach (self::IDENTITY_FIELDS as $role => $field) {
+            $wanted = $this->parseIdentities($form->get($field));
+            if ($wanted === null) {
                 continue;
             }
 
-            $identity = $this->identityOf($buyer, $role);
-            $identity->setDomain($domain);
-            $identity->setIdentity($value);
+            foreach ($buyer->getIdentities()->toArray() as $identity) {
+                if ($identity->getRole() === $role && !isset($wanted[mb_strtolower($identity->getDomain()) . ' ' . $identity->getIdentity()])) {
+                    $buyer->removeIdentity($identity);
+                }
+            }
+            foreach ($wanted as $key => [$domain, $value]) {
+                if ($this->hasIdentity($buyer, $role, $key)) {
+                    continue;
+                }
+                if ($this->identityBelongsToAnotherBuyer($buyer, $role, $domain, $value)) {
+                    $form->get($field)->addError(new FormError($this->translator->trans('tmonier_punchout.buyer.identity.taken', [], 'validators')));
+
+                    continue;
+                }
+                $identity = new BuyerIdentity();
+                $identity->setRole($role);
+                $identity->setDomain($domain);
+                $identity->setIdentity($value);
+                $buyer->addIdentity($identity);
+            }
         }
     }
 
-    private function identityOf(Buyer $buyer, string $role): BuyerIdentity
+    /**
+     * "domain identity" pairs, one per line, keyed by the lowercased domain and the identity; null (with
+     * an error on the field) when a line is not a pair.
+     *
+     * @param FormInterface<mixed> $field
+     *
+     * @return array<string, array{string, string}>|null
+     */
+    private function parseIdentities(FormInterface $field): ?array
+    {
+        $identities = [];
+        foreach (preg_split('/\R/', $this->text($field)) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = preg_split('/\s+/', $line) ?: [];
+            if (count($parts) !== 2 || mb_strlen($parts[0]) > 64 || mb_strlen($parts[1]) > 255) {
+                $field->addError(new FormError($this->translator->trans('tmonier_punchout.buyer.identity.format', [], 'validators')));
+
+                return null;
+            }
+            $identities[mb_strtolower($parts[0]) . ' ' . $parts[1]] = [$parts[0], $parts[1]];
+        }
+
+        return $identities;
+    }
+
+    private function hasIdentity(Buyer $buyer, string $role, string $key): bool
     {
         foreach ($buyer->getIdentities() as $identity) {
-            if ($identity->getRole() === $role) {
-                return $identity;
+            if ($identity->getRole() === $role && mb_strtolower($identity->getDomain()) . ' ' . $identity->getIdentity() === $key) {
+                return true;
             }
         }
 
-        $identity = new BuyerIdentity();
-        $identity->setRole($role);
-        $buyer->addIdentity($identity);
-
-        return $identity;
+        return false;
     }
 
     /** An identity designates a single buyer (unique index on role, domain and identity). */

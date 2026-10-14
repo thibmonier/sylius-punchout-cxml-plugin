@@ -2,3 +2,6 @@ tmonier_punchout:
     ui:
         session:
             checkout_blocked: "L'ordine si effettua nel tuo sistema di approvvigionamento: trasferiscici il carrello."
+    secret:
+        too_short: 'Il segreto deve avere almeno 16 caratteri.'
+        set: 'Il segreto è stato salvato.'

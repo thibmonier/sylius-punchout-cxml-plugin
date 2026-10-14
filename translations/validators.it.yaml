@@ -9,6 +9,7 @@ tmonier_punchout:
             unknown: 'Nessun cliente con questo indirizzo e-mail.'
         identity:
             taken: 'Questa identità è già usata da un altro acquirente PunchOut.'
+            format: "Ogni riga deve contenere un dominio e un'identità separati da uno spazio."
         return_domains:
             not_blank: 'Inserisci almeno un dominio di ritorno consentito.'
             invalid: 'Dominio non valido: usa ariba.com o *.ariba.com.'

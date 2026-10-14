@@ -1,4 +1,7 @@
 tmonier_punchout:
     ui:
         session:
-            checkout_blocked: "U bestelt in uw inkoopsysteem: draag uw winkelwagen daarheen over."
+            checkout_blocked: 'U bestelt in uw inkoopsysteem: draag uw winkelwagen daarheen over.'
+    secret:
+        too_short: 'Het geheim moet minstens 16 tekens bevatten.'
+        set: 'Het geheim is opgeslagen.'

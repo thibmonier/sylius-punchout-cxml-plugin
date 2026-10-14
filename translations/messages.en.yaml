@@ -10,8 +10,15 @@ tmonier_punchout:
         secret:
             title: 'New shared secret'
             help: 'Copy it now and give it to the buyer: it will not be shown again (only its hash is stored).'
-            active: 'Active secrets: %count%'
-            regenerate: 'Regenerate the secret'
+            regenerate: 'Generate a new secret'
+            section: 'Shared secrets'
+            rotation_help: 'A new secret is added next to the current one so the procurement system can switch over; revoke the old one afterwards. At most two secrets are active.'
+            created: 'Secret created on %date%'
+            revoke: Revoke
+            none: 'No active secret: the buyer cannot open a session.'
+            or: or
+            set: 'Use this secret'
+            set_placeholder: 'Secret imposed by the procurement system'
     form:
         buyer:
             name: Name
@@ -24,14 +31,12 @@ tmonier_punchout:
             customer_help: 'The PunchOut sessions log in as this customer: their prices and groups apply.'
             return_domains: 'Allowed return domains'
             return_domains_help: 'One domain per line: ariba.com (the domain and its subdomains) or *.ariba.com (subdomains only). Required: the cart is only sent to these domains.'
-            fromDomain: 'From domain'
-            fromIdentity: 'From identity (buyer)'
-            senderDomain: 'Sender domain'
-            senderIdentity: 'Sender identity (network or system)'
             identities: 'cXML identities'
-            identities_help: 'As configured by the buyer in its procurement system (for SAP Ariba: domain NetworkId, AribaNetworkUserId…).'
             iframe_origins: 'Iframe origins'
             iframe_origins_help: 'Origins allowed to show the shop in an iframe during a PunchOut session, one per line (e.g. https://s1.ariba.com).'
+            fromIdentities: 'From identities (buyer)'
+            senderIdentities: 'Sender identities (network or system)'
+            identities_format: 'One identity per line: domain then identity, e.g. NetworkId AN01000000001 or DUNS 123456789.'
     flash:
         buyer:
             created: 'PunchOut buyer has been created.'

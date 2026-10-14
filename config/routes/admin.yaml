@@ -16,9 +16,26 @@ tmonier_punchout_admin_buyer:
     type: sylius.resource
 
 tmonier_punchout_admin_buyer_regenerate_secret:
-    path: /punchout-buyers/{id}/regenerate-secret
+    path: /punchout-buyers/{id}/secrets/generate
     methods: [POST]
     requirements:
         id: '\d+'
     defaults:
-        _controller: tmonier_punchout.controller.admin_regenerate_secret
+        _controller: tmonier_punchout.controller.admin_buyer_secret::generate
+
+tmonier_punchout_admin_buyer_set_secret:
+    path: /punchout-buyers/{id}/secrets/set
+    methods: [POST]
+    requirements:
+        id: '\d+'
+    defaults:
+        _controller: tmonier_punchout.controller.admin_buyer_secret::set
+
+tmonier_punchout_admin_buyer_revoke_secret:
+    path: /punchout-buyers/{id}/secrets/{credentialId}/revoke
+    methods: [POST]
+    requirements:
+        id: '\d+'
+        credentialId: '\d+'
+    defaults:
+        _controller: tmonier_punchout.controller.admin_buyer_secret::revoke
