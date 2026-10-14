@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Session;
 
+use Sylius\Resource\Model\ResourceInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
 
-interface PunchoutSessionInterface
+interface PunchoutSessionInterface extends ResourceInterface
 {
     public function getId(): ?int;
 

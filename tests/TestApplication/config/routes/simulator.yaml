@@ -1,9 +1,9 @@
 tmonier_punchout_simulator_cxml:
     path: /simulator/cxml
-    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestApplication\Controller\SimulatorController::send
+    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController::send
     methods: [GET, POST]
 
 tmonier_punchout_simulator_receive:
     path: /simulator/receive
-    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestApplication\Controller\SimulatorController::receive
+    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController::receive
     methods: [GET, POST]

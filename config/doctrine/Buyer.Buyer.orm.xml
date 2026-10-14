@@ -12,14 +12,26 @@
             <generator strategy="AUTO"/>
         </id>
 
+        <field name="code" type="string" length="255" nullable="false" unique="true"/>
         <field name="name" type="string" length="255" nullable="false"/>
         <field name="protocol" type="string" length="10" nullable="false"/>
         <field name="enabled" type="boolean" nullable="false"/>
-        <field name="allowedReturnDomains" type="json" nullable="false" column="allowed_return_domains"/>
-        <field name="channelCode" type="string" length="255" nullable="true" column="channel_code"/>
-        <field name="notes" type="text" nullable="true"/>
-        <field name="createdAt" type="datetime_immutable" nullable="false" column="created_at"/>
-        <field name="updatedAt" type="datetime_immutable" nullable="false" column="updated_at"/>
+        <field name="companyId" type="string" length="255" nullable="true" column="company_id"/>
+        <field name="returnDomains" type="json" nullable="false" column="return_domains"/>
+        <field name="iframeOrigins" type="json" nullable="false" column="iframe_origins"/>
+        <field name="locale" type="string" length="20" nullable="true"/>
+        <field name="taxIncluded" type="boolean" nullable="true" column="tax_included"/>
+        <field name="includeShipping" type="boolean" nullable="true" column="include_shipping"/>
+
+        <many-to-one field="customer"
+                     target-entity="Sylius\Component\Core\Model\Customer">
+            <join-column name="customer_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <many-to-one field="channel"
+                     target-entity="Sylius\Component\Core\Model\Channel">
+            <join-column name="channel_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
 
         <one-to-many field="identities"
                      target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity"
@@ -37,6 +49,10 @@
                 <order-by-field name="createdAt" direction="DESC"/>
             </order-by>
         </one-to-many>
+
+        <unique-constraints>
+            <unique-constraint columns="code" name="uniq_punchout_buyer_code"/>
+        </unique-constraints>
 
     </entity>
 

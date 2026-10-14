@@ -48,7 +48,7 @@ class PunchoutSession implements PunchoutSessionInterface
 
     private ?OrderInterface $cart = null;
 
-    private readonly \DateTimeImmutable $createdAt;
+    private \DateTimeImmutable $createdAt;
 
     private \DateTimeImmutable $updatedAt;
 

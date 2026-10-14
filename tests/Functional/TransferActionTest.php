@@ -12,7 +12,7 @@ final class TransferActionTest extends WebTestCase
 
     public function testTransferWithoutSessionReturns403(): void
     {
-        $client = self::createClient();
+        $client = $this->client;
         $client->request('POST', '/punchout/transfer');
 
         // Without an active punchout session, should return 403

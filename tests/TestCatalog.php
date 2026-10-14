@@ -43,6 +43,7 @@ final readonly class TestCatalog
         $plainSecret = $generator->generate();
 
         $buyer = new Buyer();
+        $buyer->setCode('test-buyer-' . bin2hex(random_bytes(8)));
         $buyer->setName('Test Buyer ' . bin2hex(random_bytes(4)));
         $buyer->setProtocol('cxml');
         $buyer->setEnabled(true);

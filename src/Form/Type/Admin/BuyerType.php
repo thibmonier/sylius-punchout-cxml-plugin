@@ -27,7 +27,7 @@ final class BuyerType extends AbstractResourceType
                 'required' => true,
             ])
             ->add('protocol', ChoiceType::class, [
-                'label' => 'tmonier_punchout.form.buyer.protocol',
+                'label' => 'tmonier_punchout.form.buyer.protocol.label',
                 'choices' => [
                     'tmonier_punchout.form.buyer.protocol.cxml' => 'cxml',
                     'tmonier_punchout.form.buyer.protocol.oci' => 'oci',

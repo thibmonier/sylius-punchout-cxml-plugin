@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Log;
 
-interface MessageLogInterface
+use Sylius\Resource\Model\ResourceInterface;
+
+interface MessageLogInterface extends ResourceInterface
 {
     public function getId(): ?int;
 

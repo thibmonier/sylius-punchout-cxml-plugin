@@ -47,14 +47,22 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
             $container->setParameter(sprintf('tmonier_punchout.model.%s.class', $name), $resource['classes']['model']);
         }
 
+        $doctrineDir = dirname(__DIR__, 2) . '/config/doctrine';
         $container->prependExtensionConfig('doctrine', [
             'orm' => [
                 'mappings' => [
+                    // Single mapping entry with the plugin root namespace as prefix.
+                    // File names use the "Subnamespace.ClassName.orm.xml" convention so that
+                    // SimplifiedXmlDriver resolves them correctly (e.g. Buyer.Buyer.orm.xml →
+                    // Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer).
+                    // Using 'TmonierSyliusPunchoutCxmlPlugin' as key also opts out of Sylius
+                    // CoreBundle's auto_mapping: true, which would otherwise register a spurious
+                    // "Entity\" prefix for this bundle.
                     'TmonierSyliusPunchoutCxmlPlugin' => [
                         'type' => 'xml',
-                        'dir' => 'config/doctrine',
+                        'dir' => $doctrineDir,
                         'prefix' => 'Tmonier\SyliusPunchoutCxmlPlugin',
-                        'is_bundle' => true,
+                        'is_bundle' => false,
                     ],
                 ],
             ],

@@ -42,6 +42,7 @@ final class PunchoutDemoFixture extends AbstractFixture
         }
 
         $buyer = new Buyer();
+        $buyer->setCode('demo-punchout-buyer');
         $buyer->setName('Demo PunchOut Buyer');
         $buyer->setProtocol('cxml');
         $buyer->setEnabled(true);

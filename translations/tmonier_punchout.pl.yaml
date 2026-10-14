@@ -5,8 +5,8 @@ tmonier_punchout:
     form:
         buyer:
             name: Nazwa
-            protocol: Protokół
             protocol:
+                label: Protokół
                 cxml: cXML
                 oci: OCI
             enabled: Aktywny

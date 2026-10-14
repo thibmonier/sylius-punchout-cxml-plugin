@@ -72,8 +72,8 @@ final class CxmlEndpointTest extends WebTestCase
 
     public function testSetupRequestReturns200WithStartUrl(): void
     {
-        $client = self::createClient();
-        $catalog = new TestCatalog($client->getContainer());
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -92,7 +92,8 @@ final class CxmlEndpointTest extends WebTestCase
         $response = $client->getResponse();
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('text/xml', $response->headers->get('Content-Type') ?? '');
-        self::assertSame('no-store', $response->headers->get('Cache-Control'));
+        // Symfony may append 'private' automatically; we only require 'no-store' to be present
+        self::assertStringContainsString('no-store', $response->headers->get('Cache-Control') ?? '');
         self::assertFalse($response->headers->has('Set-Cookie'));
         self::assertStringContainsString('<StartPage>', (string) $response->getContent());
         self::assertStringContainsString('/punchout/start/', (string) $response->getContent());
@@ -100,8 +101,8 @@ final class CxmlEndpointTest extends WebTestCase
 
     public function testSetupRequestReturns401ForBadSecret(): void
     {
-        $client = self::createClient();
-        $catalog = new TestCatalog($client->getContainer());
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -124,8 +125,8 @@ final class CxmlEndpointTest extends WebTestCase
 
     public function testSetupRequestRejectHttpReturnUrl(): void
     {
-        $client = self::createClient();
-        $catalog = new TestCatalog($client->getContainer());
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -150,7 +151,7 @@ final class CxmlEndpointTest extends WebTestCase
 
     public function testEndpointRejectsXxePayload(): void
     {
-        $client = self::createClient();
+        $client = $this->client;
         $xxe = <<<'XML_WRAP'
         <?xml version="1.0"?>
         <!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>

@@ -1,0 +1,5 @@
+services:
+    Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController:
+        arguments:
+            $twig: '@twig'
+        public: true

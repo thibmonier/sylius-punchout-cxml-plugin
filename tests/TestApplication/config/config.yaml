@@ -1,5 +1,6 @@
 imports:
     - { resource: "@TmonierSyliusPunchoutCxmlPlugin/config/config.yaml" }
+    - { resource: "@TmonierSyliusPunchoutCxmlPlugin/tests/TestApplication/config/services.yaml" }
 
 parameters:
     env(PUNCHOUT_SUPPLIER_DOMAIN): 'NetworkId'

@@ -16,8 +16,8 @@ final class StartActionTest extends WebTestCase
 
     public function testStartTokenConsumptionRedirectsToShop(): void
     {
-        $client = self::createClient();
-        $catalog = new TestCatalog($client->getContainer());
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $session = new PunchoutSession();
@@ -28,12 +28,12 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
-        $issuer = $client->getContainer()->get(StartTokenIssuer::class);
+        $issuer = static::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 
@@ -46,7 +46,7 @@ final class StartActionTest extends WebTestCase
 
     public function testUnknownTokenReturns404(): void
     {
-        $client = self::createClient();
+        $client = $this->client;
 
         $client->request('GET', '/punchout/start/' . bin2hex(random_bytes(32)));
 
@@ -55,8 +55,8 @@ final class StartActionTest extends WebTestCase
 
     public function testHeadRequestDoesNotConsumeToken(): void
     {
-        $client = self::createClient();
-        $catalog = new TestCatalog($client->getContainer());
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $session = new PunchoutSession();
@@ -67,12 +67,12 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
-        $issuer = $client->getContainer()->get(StartTokenIssuer::class);
+        $issuer = static::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 

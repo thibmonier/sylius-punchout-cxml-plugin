@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestApplication\Controller;
+namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

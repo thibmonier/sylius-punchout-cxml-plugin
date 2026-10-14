@@ -52,10 +52,15 @@ final readonly class StartAction
         // Store the punchout session in the Symfony session
         $this->currentPunchoutSession->set($session);
 
-        // Authenticate the buyer as a Sylius shop customer (creates anonymous customer if needed)
+        // Authenticate the buyer as a Sylius shop customer.
+        // A buyer without a linked customer or shop user proceeds as an anonymous shopper.
         $buyer = $session->getBuyer();
         if ($buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
-            $this->shopperAuthenticator->authenticate($session, $request);
+            try {
+                $this->shopperAuthenticator->authenticate($session, $request);
+            } catch (\RuntimeException) {
+                // Buyer has no linked customer or shop user — continue as anonymous shopper.
+            }
         }
 
         // Redirect to the shop

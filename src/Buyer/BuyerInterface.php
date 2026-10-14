@@ -7,8 +7,9 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Buyer;
 use Doctrine\Common\Collections\Collection;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
+use Sylius\Resource\Model\ResourceInterface;
 
-interface BuyerInterface
+interface BuyerInterface extends ResourceInterface
 {
     public function getId(): ?int;
 
