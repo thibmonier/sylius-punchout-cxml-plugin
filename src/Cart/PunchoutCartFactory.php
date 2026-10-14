@@ -7,14 +7,14 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Cart;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
-use Sylius\Component\Core\Storage\CartStorageInterface;
 use Sylius\Resource\Factory\FactoryInterface;
 
 /**
- * Creates a fresh, isolated cart for a PunchOut session.
+ * Creates a fresh, isolated cart for a PunchOut session (R1).
  *
- * The cart is linked to the buyer's customer and stored in the channel
- * cart storage so that PunchoutCartContext can retrieve it during the session.
+ * The cart is NOT stored in the Sylius channel cart storage (which would
+ * overwrite the shopper's regular cart). Instead, it is exclusively accessed
+ * via PunchoutSession::getCart(), through PunchoutCartContext.
  */
 final readonly class PunchoutCartFactory
 {
@@ -23,12 +23,14 @@ final readonly class PunchoutCartFactory
      */
     public function __construct(
         private FactoryInterface $orderFactory,
-        private CartStorageInterface $cartStorage,
     ) {
     }
 
     /**
-     * Creates and stores a new cart for the given customer and channel.
+     * Creates a new isolated cart for the given customer and channel.
+     *
+     * The cart is left in state='cart' / checkoutState='cart' and must be
+     * persisted and linked to the PunchoutSession by the caller.
      */
     public function create(CustomerInterface $customer, ChannelInterface $channel): OrderInterface
     {
@@ -39,9 +41,11 @@ final readonly class PunchoutCartFactory
         $cart->setCurrencyCode($channel->getBaseCurrency()?->getCode() ?? 'EUR');
         $cart->setLocaleCode($channel->getDefaultLocale()?->getCode() ?? 'en_US');
         $cart->setCustomer($customer);
+        $cart->setState('cart');
 
-        // Store the cart in the channel storage so PunchoutCartContext can retrieve it
-        $this->cartStorage->setForChannel($channel, $cart);
+        if (method_exists($cart, 'setCheckoutState')) {
+            $cart->setCheckoutState('cart');
+        }
 
         return $cart;
     }

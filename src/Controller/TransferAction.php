@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Sylius\Component\Core\Model\CustomerInterface as CoreCustomerInterface;
-use Sylius\Component\Core\Model\OrderInterface;
-use Sylius\Component\Core\Model\ShopUserInterface;
-use Sylius\Component\Core\Repository\OrderRepositoryInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\NetPriceCalculator;
@@ -23,51 +24,89 @@ use Twig\Environment as TwigEnvironment;
 /**
  * POST /punchout/transfer
  *
- * Builds a cXML PunchOutOrderMessage from the shopper's active cart
+ * Builds a cXML PunchOutOrderMessage from the shopper's PunchOut cart (R2)
  * and posts it back to the buyer's procurement system via a self-submitting
  * HTML form (browser-side POST to the returnUrl).
+ *
+ * R3: CSRF token required (intent: tmonier_punchout_transfer, field: _csrf_token).
+ * R6: returnUrl is re-validated against ReturnUrlValidator before use.
  */
 final readonly class TransferAction
 {
     public function __construct(
         private CurrentPunchoutSession $currentPunchoutSession,
-        private OrderRepositoryInterface $orderRepository,
         private TransferLineExtractor $transferLineExtractor,
         private NetPriceCalculator $netPriceCalculator,
         private OrderMessageWriter $orderMessageWriter,
         private PayloadIdGenerator $payloadIdGenerator,
         private EntityManagerInterface $entityManager,
         private TokenStorageInterface $tokenStorage,
+        private CsrfTokenManagerInterface $csrfTokenManager,
+        private ReturnUrlValidator $returnUrlValidator,
         private TwigEnvironment $twig,
         private bool $keepTransferredCarts = false,
+        private string $supplierDomain = 'NetworkId',
+        private string $supplierIdentity = 'supplier',
     ) {
     }
 
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
+        // 1. Check active PunchOut session (must be first — 403 even without CSRF)
         $session = $this->currentPunchoutSession->getCurrent();
-        if (!$session instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession || !$session->isActive()) {
+        if (!$session instanceof PunchoutSession || !$session->isActive()) {
             $forbidden = new Response('No active PunchOut session', Response::HTTP_FORBIDDEN);
             $forbidden->headers->set('Cache-Control', 'no-store');
 
             return $forbidden;
         }
-        // Find the current cart for the authenticated shopper
+
+        // 2. R3: Validate CSRF token
+        $csrfToken = new CsrfToken('tmonier_punchout_transfer', $request->request->getString('_csrf_token'));
+        if (!$this->csrfTokenManager->isTokenValid($csrfToken)) {
+            $invalid = new Response('Invalid CSRF token', Response::HTTP_UNPROCESSABLE_ENTITY);
+            $invalid->headers->set('Cache-Control', 'no-store');
+
+            return $invalid;
+        }
+
+        // 3. Check authenticated user
         $user = $this->tokenStorage->getToken()?->getUser();
         if (!$user instanceof UserInterface) {
-            return new Response('Not authenticated', Response::HTTP_FORBIDDEN);
-        }
-        $cart = $this->resolveCart($user, $session);
-        if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
-            return new Response('No cart found', Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-        // Determine if channel is tax-inclusive (read from buyer configuration, ADR-005)
-        $taxIncluded = $this->isTaxIncluded($session);
-        $lines = $this->transferLineExtractor->extract($cart, $taxIncluded);
+            $forbidden = new Response('Not authenticated', Response::HTTP_FORBIDDEN);
+            $forbidden->headers->set('Cache-Control', 'no-store');
 
+            return $forbidden;
+        }
+
+        // 4. R6: Re-validate the returnUrl stored in the session
+        $returnUrl = $session->getReturnUrl();
+        $buyer = $session->getBuyer();
+        try {
+            $this->returnUrlValidator->validate($returnUrl, $buyer);
+        } catch (InvalidReturnUrlException) {
+            $forbidden = new Response('Return URL is no longer valid', Response::HTTP_FORBIDDEN);
+            $forbidden->headers->set('Cache-Control', 'no-store');
+
+            return $forbidden;
+        }
+
+        // 5. R2: use the session's isolated PunchOut cart (not findLatestCartByChannelAndCustomer)
+        $cart = $session->getCart();
+        if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
+            return new Response('No PunchOut cart found', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // 6. Extract transfer lines (R5: no taxIncluded flag — neutral detection is automatic)
+        $lines = $this->transferLineExtractor->extract($cart);
         $total = $this->netPriceCalculator->computeTotal($lines);
         $currency = $cart->getCurrencyCode() ?? 'EUR';
         $payloadId = $this->payloadIdGenerator->generate();
+
+        // 7. R4: use persisted buyer identities for the cXML headers
+        $buyerDomain = $session->getFromDomain() ?: 'NetworkId';
+        $buyerIdentity = $session->getFromIdentity() ?: 'buyer';
+
         $xml = $this->orderMessageWriter->write(
             $lines,
             $total,
@@ -75,17 +114,22 @@ final readonly class TransferAction
             $session->getBuyerCookie(),
             $payloadId,
             $session->getOperation(),
+            $this->supplierDomain,
+            $this->supplierIdentity,
+            $buyerDomain,
+            $buyerIdentity,
         );
+
         // Mark session as transferred
         $session->setStatus(PunchoutSession::STATUS_TRANSFERRED);
         $this->entityManager->flush();
+
         // Optionally empty the cart
         if (!$this->keepTransferredCarts) {
             $this->clearCart($cart);
         }
+
         // Build a self-submitting form that POSTs the cXML to the returnUrl
-        // cXML-base64 is the standard field name for cXML PunchOut transfer
-        $returnUrl = $session->getReturnUrl();
         $xmlBase64 = base64_encode($xml);
 
         // Generate a cryptographically random nonce for the inline script
@@ -120,46 +164,7 @@ final readonly class TransferAction
         return $response;
     }
 
-    private function resolveCart(UserInterface $user, PunchoutSession $session): ?OrderInterface
-    {
-        $channel = $session->getBuyer()?->getChannel();
-        if (!$channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
-            return null;
-        }
-
-        // Try customer-level lookup first (most common path)
-        if (!$user instanceof ShopUserInterface) {
-            return null;
-        }
-
-        $customer = $user->getCustomer();
-        if (!$customer instanceof CoreCustomerInterface) {
-            return null;
-        }
-
-        return $this->orderRepository->findLatestCartByChannelAndCustomer($channel, $customer);
-    }
-
-    /**
-     * Resolves whether the channel displays tax-inclusive prices (ADR-005).
-     *
-     * Priority: buyer.taxIncluded override → false (channel strategy deferred to sprint 2).
-     */
-    private function isTaxIncluded(PunchoutSession $session): bool
-    {
-        $buyer = $session->getBuyer();
-        if ($buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
-            $override = $buyer->getTaxIncluded();
-            if ($override !== null) {
-                return $override;
-            }
-        }
-
-        // Channel-level strategy (e.g. tax_calculation_strategy) deferred to sprint 2
-        return false;
-    }
-
-    private function clearCart(OrderInterface $cart): void
+    private function clearCart(\Sylius\Component\Core\Model\OrderInterface $cart): void
     {
         foreach ($cart->getItems() as $item) {
             $cart->removeItem($item);

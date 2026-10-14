@@ -20,6 +20,8 @@
         <field name="status" type="string" length="20" nullable="false"/>
         <field name="extrinsics" type="json" nullable="false"/>
         <field name="itemsOut" type="json" nullable="false" column="items_out"/>
+        <field name="fromDomain" type="string" length="255" nullable="false" column="from_domain"/>
+        <field name="fromIdentity" type="string" length="255" nullable="false" column="from_identity"/>
         <field name="createdAt" type="datetime_immutable" nullable="false" column="created_at"/>
         <field name="updatedAt" type="datetime_immutable" nullable="false" column="updated_at"/>
 
@@ -27,6 +29,13 @@
                      target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer"
                      fetch="EAGER">
             <join-column name="buyer_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <!-- R1: isolated PunchOut cart — accessed exclusively via $session->getCart() -->
+        <many-to-one field="cart"
+                     target-entity="Sylius\Component\Core\Model\Order"
+                     fetch="EAGER">
+            <join-column name="order_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
         </many-to-one>
 
         <indexes>

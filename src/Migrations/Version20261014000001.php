@@ -13,12 +13,16 @@ use Doctrine\Migrations\AbstractMigration;
  *
  * Uses the DBAL Schema API for MySQL / MariaDB / PostgreSQL portability.
  * Tables: buyer, buyer_identity, buyer_credential, session, message_log.
+ *
+ * R1: session.order_id (FK to sylius_order, SET NULL on delete) — isolated PunchOut cart.
+ * R4: session.from_domain, session.from_identity — buyer identities for cXML From header.
+ * R5: buyer.tax_included removed — neutral adjustment detection replaces the flag.
  */
 final class Version20261014000001 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create tmonier_punchout_* tables — Sprint 1 (Schema API, portable)';
+        return 'Create tmonier_punchout_* tables — Sprint 1 (R1/R4/R5, Schema API, portable)';
     }
 
     public function up(Schema $schema): void
@@ -36,7 +40,7 @@ final class Version20261014000001 extends AbstractMigration
         $buyer->addColumn('return_domains', Types::JSON, ['notnull' => true]);
         $buyer->addColumn('iframe_origins', Types::JSON, ['notnull' => true]);
         $buyer->addColumn('locale', Types::STRING, ['length' => 20, 'notnull' => false]);
-        $buyer->addColumn('tax_included', Types::BOOLEAN, ['notnull' => false]);
+        // NOTE: tax_included intentionally omitted (R5: neutral adjustment detection)
         $buyer->addColumn('include_shipping', Types::BOOLEAN, ['notnull' => false]);
         $buyer->setPrimaryKey(['id']);
         $buyer->addUniqueIndex(['code'], 'uniq_punchout_buyer_code');
@@ -97,6 +101,8 @@ final class Version20261014000001 extends AbstractMigration
         $session = $schema->createTable('tmonier_punchout_session');
         $session->addColumn('id', Types::INTEGER, ['autoincrement' => true, 'notnull' => true]);
         $session->addColumn('buyer_id', Types::INTEGER, ['notnull' => false]);
+        // R1: isolated PunchOut cart — SET NULL on order delete (order can outlive session)
+        $session->addColumn('order_id', Types::INTEGER, ['notnull' => false]);
         $session->addColumn('operation', Types::STRING, ['length' => 20, 'notnull' => true]);
         $session->addColumn('buyer_cookie', Types::STRING, ['length' => 1024, 'notnull' => true]);
         $session->addColumn('return_url', Types::STRING, ['length' => 2048, 'notnull' => true]);
@@ -105,10 +111,14 @@ final class Version20261014000001 extends AbstractMigration
         $session->addColumn('status', Types::STRING, ['length' => 20, 'notnull' => true]);
         $session->addColumn('extrinsics', Types::JSON, ['notnull' => true]);
         $session->addColumn('items_out', Types::JSON, ['notnull' => true]);
+        // R4: preserve buyer From identities for cXML PunchOutOrderMessage header
+        $session->addColumn('from_domain', Types::STRING, ['length' => 255, 'notnull' => true, 'default' => '']);
+        $session->addColumn('from_identity', Types::STRING, ['length' => 255, 'notnull' => true, 'default' => '']);
         $session->addColumn('created_at', Types::DATETIME_IMMUTABLE, ['notnull' => true]);
         $session->addColumn('updated_at', Types::DATETIME_IMMUTABLE, ['notnull' => true]);
         $session->setPrimaryKey(['id']);
         $session->addIndex(['buyer_id'], 'IDX_929431AB6C755722');
+        $session->addIndex(['order_id'], 'IDX_929431AB8D9F6D38');
         $session->addIndex(['start_token_hash', 'status'], 'idx_punchout_session_token_status');
         $session->addIndex(['status', 'created_at'], 'idx_punchout_session_status_created');
         $session->addForeignKeyConstraint(
@@ -117,6 +127,13 @@ final class Version20261014000001 extends AbstractMigration
             ['id'],
             ['onDelete' => 'SET NULL'],
             'FK_929431AB6C755722',
+        );
+        $session->addForeignKeyConstraint(
+            'sylius_order',
+            ['order_id'],
+            ['id'],
+            ['onDelete' => 'SET NULL'],
+            'FK_929431AB8D9F6D38',
         );
 
         // --- tmonier_punchout_message_log ---

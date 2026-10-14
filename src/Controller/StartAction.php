@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\ShopperAuthenticator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
@@ -16,8 +19,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
 /**
  * GET /punchout/start/{token}
  *
- * Consumes a single-use start token, authenticates the shopper and
- * redirects them to the shop homepage.
+ * Consumes a single-use start token, authenticates the shopper, creates an
+ * isolated PunchOut cart (R1), and redirects the shopper to the shop homepage.
  *
  * ADR-0003: a linked Sylius customer is mandatory.
  * If the buyer has no linked customer, the session is cancelled and a
@@ -28,6 +31,7 @@ final readonly class StartAction
     public function __construct(
         private StartTokenConsumer $tokenConsumer,
         private ShopperAuthenticator $shopperAuthenticator,
+        private PunchoutCartFactory $punchoutCartFactory,
         private UrlGeneratorInterface $urlGenerator,
         private EntityManagerInterface $entityManager,
     ) {
@@ -56,7 +60,7 @@ final readonly class StartAction
 
         // ADR-0003: authenticate the buyer's linked customer — no anonymous fallback.
         // ShopperAuthenticator throws RuntimeException when the buyer has no linked
-        // customer, no shop user, or the shop user is disabled.
+        // customer, no shop user, the shop user is disabled, or R7 checks fail.
         try {
             $this->shopperAuthenticator->authenticate($session, $request);
         } catch (\RuntimeException) {
@@ -70,6 +74,22 @@ final readonly class StartAction
                 ['Content-Type' => 'text/html; charset=UTF-8'],
             );
         }
+
+        // R1: create an isolated PunchOut cart and link it to the session.
+        // The cart is accessed exclusively via $session->getCart() through
+        // PunchoutCartContext — it is NOT stored in the channel cart storage
+        // to avoid overwriting the shopper's regular cart.
+        $buyer = $session->getBuyer();
+        $channel = $buyer?->getChannel();
+        $customer = $buyer?->getCustomer();
+
+        if ($channel instanceof ChannelInterface && $customer instanceof CustomerInterface) {
+            $cart = $this->punchoutCartFactory->create($customer, $channel);
+            $this->entityManager->persist($cart);
+            $session->setCart($cart);
+        }
+
+        $this->entityManager->flush();
 
         // Redirect to the shop
         $shopUrl = $this->urlGenerator->generate('sylius_shop_homepage');
