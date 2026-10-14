@@ -1,0 +1,23 @@
+imports:
+    - { resource: "@TmonierSyliusPunchoutCxmlPlugin/config/config.yaml" }
+
+parameters:
+    env(PUNCHOUT_SUPPLIER_DOMAIN): 'NetworkId'
+    env(PUNCHOUT_SUPPLIER_IDENTITY): 'demo-supplier@example.com'
+
+twig:
+    paths:
+        '%kernel.project_dir%/../../../tests/TestApplication/templates': ~
+
+# Simulator routes (TestApplication only — never exposed in production)
+tmonier_sylius_punchout_cxml:
+    supplier_identity:
+        domain: '%env(PUNCHOUT_SUPPLIER_DOMAIN)%'
+        identity: '%env(PUNCHOUT_SUPPLIER_IDENTITY)%'
+
+sylius_fixtures:
+    suites:
+        default:
+            fixtures:
+                tmonier_punchout_demo:
+                    priority: -100

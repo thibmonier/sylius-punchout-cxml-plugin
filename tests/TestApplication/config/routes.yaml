@@ -1,0 +1,2 @@
+tmonier_punchout_simulator:
+    resource: "@TmonierSyliusPunchoutCxmlPlugin/../tests/TestApplication/config/routes/simulator.yaml"
