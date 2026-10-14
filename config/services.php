@@ -63,7 +63,8 @@ return static function (ContainerConfigurator $container): void {
     $services->set(PayloadIdGenerator::class);
     // R8: bind allowed extrinsics from config
     $services->set(SetupRequestReader::class)
-        ->arg('$allowedExtrinsics', '%tmonier_punchout.allowed_extrinsics%');
+        ->arg('$allowedExtrinsics', '%tmonier_punchout.allowed_extrinsics%')
+        ->arg('$maxItemsOut', '%tmonier_punchout.max_items_out%');
     $services->set(SetupResponseWriter::class);
     $services->set(ProfileResponseWriter::class);
     $services->set(OrderMessageWriter::class);
@@ -95,9 +96,12 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.security.return_url_validator', ReturnUrlValidator::class);
 
     // Journal (US-024)
-    $services->set(BodyMasker::class);
+    $services->set(BodyMasker::class)
+        ->arg('$allowedExtrinsics', '%tmonier_punchout.allowed_extrinsics%');
     $services->set(MessageLogger::class)
-        ->arg('$logBodies', '%tmonier_punchout.log_bodies%');
+        ->arg('$connection', service('doctrine.dbal.default_connection'))
+        ->arg('$logBodies', '%tmonier_punchout.log_bodies%')
+        ->arg('$maxBodyBytes', '%tmonier_punchout.max_request_bytes%');
 
     // Session
     $services->set(SessionFactory::class);
@@ -121,7 +125,6 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$variantRepository', service('sylius.repository.product_variant'))
         ->arg('$orderItemFactory', service('sylius.factory.order_item'))
         ->arg('$quantityModifier', service('sylius.modifier.order_item_quantity'))
-        ->arg('$orderModifier', service('sylius.modifier.order'))
         ->arg('$orderProcessor', service('sylius.order_processing.order_processor'));
 
     // Transfer
@@ -144,6 +147,7 @@ return static function (ContainerConfigurator $container): void {
         ->public()
         ->arg('$setupLimiter', service('limiter.tmonier_punchout_setup'))
         ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
+        ->arg('$identityFailureLimiter', service('limiter.tmonier_punchout_identity_failure'))
         ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
         ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
 
@@ -163,7 +167,6 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.controller.start', StartAction::class)->public();
     $services->alias('tmonier_punchout.controller.transfer', TransferAction::class)->public();
     $services->set(InspectAction::class)
-        ->arg('$variantRepository', service('sylius.repository.product_variant'))
         ->tag('controller.service_arguments')
         ->public();
     $services->alias('tmonier_punchout.controller.inspect', InspectAction::class)->public();

@@ -9,7 +9,6 @@ use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Order\Modifier\OrderItemQuantityModifierInterface;
-use Sylius\Component\Order\Modifier\OrderModifierInterface;
 use Sylius\Component\Order\Processor\OrderProcessorInterface;
 use Sylius\Component\Product\Repository\ProductVariantRepositoryInterface;
 use Sylius\Resource\Factory\FactoryInterface;
@@ -32,7 +31,6 @@ final readonly class CartRebuilder
         private ProductVariantRepositoryInterface $variantRepository,
         private FactoryInterface $orderItemFactory,
         private OrderItemQuantityModifierInterface $quantityModifier,
-        private OrderModifierInterface $orderModifier,
         private OrderProcessorInterface $orderProcessor,
     ) {
     }
@@ -44,25 +42,55 @@ final readonly class CartRebuilder
      */
     public function rebuild(OrderInterface $cart, array $itemsOut): array
     {
-        $leftOut = [];
+        // One line per variant: quantities of repeated items are added up, then capped.
+        $quantities = [];
         foreach ($itemsOut as $itemOut) {
             $code = self::variantCode($itemOut);
-            $variant = $code === '' ? null : $this->variantRepository->findOneBy(['code' => $code]);
-            $quantity = is_int($itemOut['quantity'] ?? null) ? min($itemOut['quantity'], self::MAX_QUANTITY) : 0;
-            if (!$variant instanceof ProductVariantInterface || $quantity < 1 || !$this->isSold($variant, $cart->getChannel())) {
+            $quantities[$code] = ($quantities[$code] ?? 0) + (is_int($itemOut['quantity'] ?? null) ? max(0, $itemOut['quantity']) : 0);
+        }
+        $variants = $this->soldVariants(array_keys($quantities), $cart->getChannel());
+
+        $leftOut = [];
+        foreach ($quantities as $code => $quantity) {
+            $variant = $variants[$code] ?? null;
+            if ($variant === null || $quantity < 1) {
                 $leftOut[] = $code !== '' ? $code : '?';
 
                 continue;
             }
-
             $item = $this->orderItemFactory->createNew();
             $item->setVariant($variant);
-            $this->quantityModifier->modify($item, $quantity);
-            $this->orderModifier->addToOrder($cart, $item);
+            $this->quantityModifier->modify($item, min($quantity, self::MAX_QUANTITY));
+            $cart->addItem($item);
         }
+        // Prices, promotions and taxes computed once for the whole cart.
         $this->orderProcessor->process($cart);
 
         return $leftOut;
+    }
+
+    /**
+     * The variants among $codes that are sold on the channel (enabled, product enabled and in the
+     * channel, priced), loaded in one query.
+     *
+     * @param list<string> $codes
+     *
+     * @return array<string, ProductVariantInterface>
+     */
+    public function soldVariants(array $codes, ?ChannelInterface $channel): array
+    {
+        $codes = array_values(array_filter($codes, static fn (string $code): bool => $code !== ''));
+        if ($codes === [] || !$channel instanceof ChannelInterface) {
+            return [];
+        }
+        $variants = [];
+        foreach ($this->variantRepository->findBy(['code' => $codes]) as $variant) {
+            if ($this->isSold($variant, $channel)) {
+                $variants[(string) $variant->getCode()] = $variant;
+            }
+        }
+
+        return $variants;
     }
 
     /** @param array<string, mixed> $itemOut */

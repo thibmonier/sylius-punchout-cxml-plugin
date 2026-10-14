@@ -66,8 +66,16 @@ final class MessageLogTest extends WebTestCase
 
         $log = $this->entityManager()->getRepository(MessageLog::class)->findOneBy(['payloadId' => $payloadId]);
         self::assertInstanceOf(MessageLog::class, $log);
-        self::assertSame([401, null], [$log->getStatus(), $log->getBuyer()]);
-        self::assertStringNotContainsString($secret, (string) $log->getMaskedBody());
+        self::assertSame([401, null, null], [$log->getStatus(), $log->getBuyer(), $log->getMaskedBody()], 'No body is kept for an unauthenticated request');
+    }
+
+    public function testAnOversizedAnonymousRequestKeepsNoBody(): void
+    {
+        $this->postSetup('<cXML>' . str_repeat('x', 300 * 1024) . '</cXML>');
+
+        $log = $this->entityManager()->getRepository(MessageLog::class)->findOneBy([], ['id' => 'DESC']);
+        self::assertInstanceOf(MessageLog::class, $log);
+        self::assertSame([406, null], [$log->getStatus(), $log->getMaskedBody()]);
     }
 
     private function loginAdmin(): void

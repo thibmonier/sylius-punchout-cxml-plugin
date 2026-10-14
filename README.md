@@ -82,9 +82,12 @@ tmonier_sylius_punchout_cxml:
     session_lifetime: 28800          # seconds an open PunchOut session lasts
     replay_window: 900               # accepted clock skew of the setup timestamp, in seconds
     max_request_bytes: 262144        # 256 KiB
+    max_items_out: 500               # items of a requisition (edit / inspect)
+    log_bodies: false                # keep the masked bodies in the PunchOut log
     rate_limits:
-        setup: { limit: 30, interval: '1 minute' }                    # per client address
-        authentication_failures: { limit: 10, interval: '1 minute' }  # per buyer identity, any address
+        setup: { limit: 30, interval: '1 minute' }                                 # per client address
+        authentication_failures: { limit: 10, interval: '1 minute' }               # per identity and address
+        authentication_failures_per_identity: { limit: 50, interval: '1 minute' }  # per identity, all addresses
     keep_transferred_carts: false
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
@@ -114,6 +117,9 @@ framework:
     trusted_proxies: '10.0.0.0/8'   # your proxies / load balancer only
     trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host']
 ```
+
+Also set `framework.trusted_hosts` to your shop host names: the URLs returned to the procurement
+system are built from the request host.
 
 With several application servers, share the rate limiter storage (for example a Redis cache pool
 for `cache.rate_limiter` and a Redis lock store), otherwise each server counts on its own.

@@ -18,12 +18,12 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{supplier_identity: array{domain: string, identity: string}, start_token_ttl: int, session_lifetime: int, replay_window: int, max_request_bytes: int, retention_days: int, log_bodies: bool, keep_transferred_carts: bool, rate_limits: array<string, mixed>, allowed_extrinsics: list<string>, insecure_return_url_hosts: list<string>, driver: string, resources: array<string, mixed>} $config */
+        /** @var array{supplier_identity: array{domain: string, identity: string}, start_token_ttl: int, session_lifetime: int, replay_window: int, max_request_bytes: int, max_items_out: int, retention_days: int, log_bodies: bool, keep_transferred_carts: bool, rate_limits: array<string, mixed>, allowed_extrinsics: list<string>, insecure_return_url_hosts: list<string>, driver: string, resources: array<string, mixed>} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         $this->registerResources('tmonier_punchout', $config['driver'], $config['resources'], $container);
 
-        foreach (['start_token_ttl', 'session_lifetime', 'replay_window', 'max_request_bytes', 'retention_days', 'log_bodies', 'keep_transferred_carts', 'allowed_extrinsics', 'insecure_return_url_hosts'] as $key) {
+        foreach (['start_token_ttl', 'session_lifetime', 'replay_window', 'max_request_bytes', 'max_items_out', 'retention_days', 'log_bodies', 'keep_transferred_carts', 'allowed_extrinsics', 'insecure_return_url_hosts'] as $key) {
             $container->setParameter('tmonier_punchout.' . $key, $config[$key]);
         }
 
@@ -70,7 +70,7 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 
         // Rate limiters — only if symfony/rate-limiter is available
         if (class_exists(RateLimiterFactory::class)) {
-            /** @var array{rate_limits: array{setup: array{limit: int, interval: string}, authentication_failures: array{limit: int, interval: string}, oci_entry: array{limit: int, interval: string}}} $limits */
+            /** @var array{rate_limits: array{setup: array{limit: int, interval: string}, authentication_failures: array{limit: int, interval: string}, authentication_failures_per_identity: array{limit: int, interval: string}, oci_entry: array{limit: int, interval: string}}} $limits */
             $limits = $this->processConfiguration(new Configuration(), array_map(
                 static fn (array $c): array => isset($c['rate_limits']) ? ['rate_limits' => $c['rate_limits']] : [],
                 $container->getExtensionConfig($this->getAlias()),
@@ -86,6 +86,7 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
             $container->prependExtensionConfig('framework', ['rate_limiter' => [
                 'tmonier_punchout_setup' => $limiter($limits['rate_limits']['setup']['limit'], $limits['rate_limits']['setup']['interval']),
                 'tmonier_punchout_authentication_failure' => $limiter($limits['rate_limits']['authentication_failures']['limit'], $limits['rate_limits']['authentication_failures']['interval']),
+                'tmonier_punchout_identity_failure' => $limiter($limits['rate_limits']['authentication_failures_per_identity']['limit'], $limits['rate_limits']['authentication_failures_per_identity']['interval']),
                 'tmonier_punchout_oci_entry' => $limiter($limits['rate_limits']['oci_entry']['limit'], $limits['rate_limits']['oci_entry']['interval']),
             ]]);
         }

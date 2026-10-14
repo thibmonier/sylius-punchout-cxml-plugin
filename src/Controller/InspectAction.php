@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
-use Sylius\Component\Core\Model\ProductVariantInterface;
-use Sylius\Component\Product\Repository\ProductVariantRepositoryInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -19,10 +17,9 @@ use Twig\Environment;
  */
 final readonly class InspectAction
 {
-    /** @param ProductVariantRepositoryInterface<ProductVariantInterface> $variantRepository */
     public function __construct(
         private CurrentPunchoutSession $currentPunchoutSession,
-        private ProductVariantRepositoryInterface $variantRepository,
+        private CartRebuilder $cartRebuilder,
         private UrlGeneratorInterface $urlGenerator,
         private Environment $twig,
     ) {
@@ -35,13 +32,18 @@ final readonly class InspectAction
             return new RedirectResponse($this->urlGenerator->generate('sylius_shop_homepage'));
         }
 
+        $variants = $this->cartRebuilder->soldVariants(
+            array_map(CartRebuilder::variantCode(...), $session->getItemsOut()),
+            $session->getBuyer()?->getChannel(),
+        );
         $items = [];
         foreach ($session->getItemsOut() as $itemOut) {
             $code = CartRebuilder::variantCode($itemOut);
-            $variant = $code === '' ? null : $this->variantRepository->findOneBy(['code' => $code]);
+            $variant = $variants[$code] ?? null;
             $items[] = [
                 'code' => $code,
-                'name' => $variant instanceof ProductVariantInterface ? ($variant->getProduct()?->getName() ?? $variant->getName()) : null,
+                // Only items sold on the channel are named: no catalogue disclosure through guessed codes.
+                'name' => $variant?->getProduct()?->getName() ?? $variant?->getName(),
                 'quantity' => is_int($itemOut['quantity'] ?? null) ? $itemOut['quantity'] : 0,
             ];
         }

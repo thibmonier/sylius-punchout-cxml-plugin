@@ -13,10 +13,12 @@
         </div>
         <div class="d-grid gap-2 pb-3">
             <a href="{{ path('sylius_shop_cart_summary') }}" class="btn btn-light" type="button">{{ 'sylius.ui.view_and_edit_cart'|trans }}</a>
+            {% if tmonier_punchout_session().operation|default('') != 'inspect' %}
             <form method="post" action="{{ path('tmonier_punchout_transfer') }}" class="d-grid">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_transfer') }}">
                 <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-punchout-offcanvas-transfer') }}>{{ 'tmonier_punchout.ui.session.transfer'|trans }}</button>
             </form>
+            {% endif %}
         </div>
     </div>
 </div>

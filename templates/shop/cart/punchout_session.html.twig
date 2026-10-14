@@ -18,10 +18,12 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_cancel') }}">
                     <button type="submit" class="btn btn-outline-secondary" {{ sylius_test_html_attribute('tmonier-punchout-cancel') }}>{{ 'tmonier_punchout.ui.session.cancel'|trans }}</button>
                 </form>
+                {% if punchout_session.operation != 'inspect' %}
                 <form method="post" action="{{ path('tmonier_punchout_transfer') }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_transfer') }}">
                     <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-punchout-transfer') }}>{{ 'tmonier_punchout.ui.session.transfer'|trans }}</button>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>

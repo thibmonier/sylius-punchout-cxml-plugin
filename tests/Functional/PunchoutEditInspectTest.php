@@ -63,6 +63,8 @@ final class PunchoutEditInspectTest extends WebTestCase
         self::assertStringContainsString('4', $row->text());
         self::assertCount(0, $crawler->filter('form[action*="/cart"]'), 'No cart form on the inspect page');
 
+        $cartPage = $this->client->request('GET', '/en_US/cart/');
+        self::assertCount(0, $cartPage->filter('[data-test-tmonier-punchout-transfer], [data-test-tmonier-punchout-offcanvas-transfer]'), 'Nothing to transfer while inspecting');
         $this->client->request('POST', '/simulator/test/cart/add', ['variant' => (string) $a->getCode(), 'quantity' => '1']);
         $this->client->submit($this->client->request('GET', '/en_US/punchout/inspect')->filter('[data-test-tmonier-punchout-back]')->form());
         $message = (string) preg_replace('/>\s+</', '><', (string) base64_decode((string) $this->client->getCrawler()->filter('input[name="cXML-base64"]')->attr('value'), true));
@@ -70,6 +72,38 @@ final class PunchoutEditInspectTest extends WebTestCase
         self::assertStringContainsString('operationAllowed="inspect"', $message);
         self::assertStringNotContainsString('<ItemIn', $message, 'Inspecting never sends items back');
         $this->assertValidAgainstTheDtd($message);
+    }
+
+    public function testARequisitionWithTooManyItemsIsRefused(): void
+    {
+        [$buyer, $secret, $a] = $this->buyerAndTwoVariants();
+        $items = str_repeat('<ItemOut quantity="1"><ItemID><SupplierPartID>' . $a->getCode() . '</SupplierPartID></ItemID></ItemOut>', 501);
+        $xml = str_replace('</BrowserFormPost>', '</BrowserFormPost>' . $items, $this->setupRequestXml($buyer, $secret, 'C', operation: 'edit'));
+
+        self::assertStringContainsString('<Status code="400"', $this->postSetup($xml));
+    }
+
+    public function testRepeatedItemsOfOneVariantAreMergedAndCapped(): void
+    {
+        [$buyer, $secret, $a] = $this->buyerAndTwoVariants();
+
+        $this->open($buyer, $secret, 'edit', [[$a, 9999, true], [$a, 9999, true], [$a, 2, false]]);
+
+        self::assertSame([['variant' => $a->getCode(), 'quantity' => 9999]], $this->currentCart()['items']);
+    }
+
+    public function testInspectNamesOnlyItemsSoldOnTheChannel(): void
+    {
+        [$buyer, $secret, $a, $b] = $this->buyerAndTwoVariants();
+        $b->setEnabled(false);
+        $this->entityManager()->flush();
+
+        $this->open($buyer, $secret, 'inspect', [[$a, 1, true], [$b, 1, true]]);
+        $crawler = $this->client->followRedirect();
+
+        $rows = $crawler->filter('[data-test-tmonier-punchout-inspect-item]');
+        self::assertStringContainsString((string) $a->getProduct()?->getName(), $rows->eq(0)->text());
+        self::assertStringNotContainsString((string) $b->getProduct()?->getName(), $rows->eq(1)->text());
     }
 
     /** @return array{BuyerInterface, string, ProductVariantInterface, ProductVariantInterface} */

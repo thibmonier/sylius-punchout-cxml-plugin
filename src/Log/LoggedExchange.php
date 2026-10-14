@@ -14,4 +14,7 @@ final class LoggedExchange
     public string $payloadId = '';
 
     public ?BuyerInterface $buyer = null;
+
+    /** "domain|identity" of the From credential, as sent (security context). */
+    public ?string $identity = null;
 }

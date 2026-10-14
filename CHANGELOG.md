@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Journal: body kept only for authenticated buyers and within `max_request_bytes`; masking done on the parsed document (secrets, Extrinsic outside the allowed list, contacts and addresses, e-mail addresses)
+- Requisitions: at most `max_items_out` items, rebuilt in one query and one cart processing; inspect names only items sold on the channel
+- Authentication failures limited per identity and address, and per identity from all addresses
+
 - The setup response carried `inReplyTo` on the cXML root, which the cXML 1.2.071 DTD does not allow
 - `Extrinsic` elements are read from `PunchOutSetupRequest` and only the allowed ones are kept
 

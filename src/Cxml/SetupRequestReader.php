@@ -15,8 +15,10 @@ final readonly class SetupRequestReader
     /**
      * @param list<string> $allowedExtrinsics
      */
-    public function __construct(private array $allowedExtrinsics = [])
-    {
+    public function __construct(
+        private array $allowedExtrinsics = [],
+        private int $maxItemsOut = 500,
+    ) {
     }
 
     /** Name of the request element (PunchOutSetupRequest, ProfileRequest, OrderRequest…). */
@@ -63,7 +65,7 @@ final readonly class SetupRequestReader
         $sharedSecret = $header->sharedSecret;
 
         // Request body
-        $setupRequest = $xpath->query('//Request/PunchOutSetupRequest');
+        $setupRequest = $xpath->query('/cXML/Request/PunchOutSetupRequest');
         if ($setupRequest === false || $setupRequest->length === 0) {
             throw new CxmlParseException('Missing PunchOutSetupRequest element');
         }
@@ -75,8 +77,8 @@ final readonly class SetupRequestReader
             throw new UnsupportedOperationException(sprintf('Unsupported operation "%s"', $operation));
         }
 
-        $buyerCookie = $this->requireTextContent($xpath, '//Request/PunchOutSetupRequest/BuyerCookie');
-        $browserFormPostUrl = $this->requireTextContent($xpath, '//Request/PunchOutSetupRequest/BrowserFormPost/URL');
+        $buyerCookie = $this->requireTextContent($xpath, '/cXML/Request/PunchOutSetupRequest/BuyerCookie');
+        $browserFormPostUrl = $this->requireTextContent($xpath, '/cXML/Request/PunchOutSetupRequest/BrowserFormPost/URL');
 
         // Extrinsics of the setup request, only the allowed ones (personal data minimised)
         $extrinsics = [];
@@ -93,7 +95,10 @@ final readonly class SetupRequestReader
 
         // ItemOut (edit / inspect)
         $itemsOut = [];
-        $itemOutNodes = $xpath->query('//Request/PunchOutSetupRequest/ItemOut');
+        $itemOutNodes = $xpath->query('/cXML/Request/PunchOutSetupRequest/ItemOut');
+        if ($itemOutNodes !== false && $itemOutNodes->length > $this->maxItemsOut) {
+            throw new CxmlParseException(sprintf('Too many ItemOut (%d at most)', $this->maxItemsOut));
+        }
         if ($itemOutNodes !== false) {
             foreach ($itemOutNodes as $node) {
                 /** @var \DOMElement $node */

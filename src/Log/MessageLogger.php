@@ -4,26 +4,35 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Log;
 
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Types\Types;
 use Psr\Log\LoggerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSessionInterface;
 
 /**
- * Journal of the PunchOut exchanges (US-024): every request received and message sent, with a
- * SHA-256 of the body and, only when `log_bodies` is enabled, the masked body. Failed or refused
- * requests are also security events (PSR logger, warning).
+ * Journal of the PunchOut exchanges (US-024): every request received and message sent, with the
+ * SHA-256 of the body (of its first `max_request_bytes` at most) and, only when `log_bodies` is
+ * enabled and the sender was authenticated, the masked body. Written with DBAL: it never flushes the
+ * pending changes of the caller. Refused requests are also security events (PSR logger, warning).
  */
 final readonly class MessageLogger
 {
+    private const TABLE = 'tmonier_punchout_message_log';
+
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private Connection $connection,
         private BodyMasker $masker,
         private LoggerInterface $logger,
         private bool $logBodies = false,
+        private int $maxBodyBytes = 262144,
     ) {
     }
 
+    /**
+     * @param bool $authenticated whether the body was sent by an authenticated buyer (or by the shop)
+     * @param array<string, string|null> $context security context of a refused request (address, identity)
+     */
     public function log(
         string $direction,
         string $messageType,
@@ -32,24 +41,24 @@ final readonly class MessageLogger
         string $body,
         ?BuyerInterface $buyer = null,
         ?PunchoutSessionInterface $session = null,
+        bool $authenticated = true,
+        array $context = [],
     ): void {
-        $log = new MessageLog();
-        $log->setDirection($direction);
-        $log->setMessageType(mb_substr($messageType, 0, 100));
-        $log->setPayloadId(mb_substr($payloadId, 0, 255));
-        $log->setStatus($status);
-        $log->setBuyer($buyer);
-        $log->setSession($session);
-        $log->setBodyHash(hash('sha256', $body));
-        $log->setMaskedBody($this->logBodies ? $this->masker->mask($body) : null);
-
-        if ($this->entityManager->isOpen()) {
-            $this->entityManager->persist($log);
-            $this->entityManager->flush();
-        }
+        $this->connection->insert(self::TABLE, [
+            'buyer_id' => $buyer?->getId(),
+            'session_id' => $session?->getId(),
+            'direction' => $direction,
+            'protocol' => MessageLog::PROTOCOL_CXML,
+            'message_type' => mb_substr($messageType, 0, 100),
+            'payload_id' => mb_substr($payloadId, 0, 255),
+            'status' => $status,
+            'body_hash' => hash('sha256', substr($body, 0, $this->maxBodyBytes)),
+            'masked_body' => $this->logBodies && $authenticated && strlen($body) <= $this->maxBodyBytes ? $this->masker->mask($body) : null,
+            'created_at' => new \DateTimeImmutable(),
+        ], ['created_at' => Types::DATETIME_IMMUTABLE]);
 
         if ($status >= 400) {
-            $this->logger->warning('PunchOut request refused', ['type' => $messageType, 'status' => $status, 'buyer' => $buyer?->getCode()]);
+            $this->logger->warning('PunchOut request refused', ['type' => $messageType, 'status' => $status, 'buyer' => $buyer?->getCode()] + $context);
         }
     }
 }

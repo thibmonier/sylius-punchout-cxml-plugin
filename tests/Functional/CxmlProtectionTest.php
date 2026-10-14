@@ -56,18 +56,41 @@ final class CxmlProtectionTest extends WebTestCase
         self::assertNotSame(429, $this->client->getResponse()->getStatusCode(), 'Other addresses are not limited');
     }
 
-    public function testRepeatedAuthenticationFailuresOfAnIdentityAreLimitedWhateverTheAddress(): void
+    public function testRepeatedAuthenticationFailuresOfAnIdentityFromOneAddressAreLimited(): void
     {
-        ['buyer' => $buyer] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: 'bruteforce-' . bin2hex(random_bytes(4)) . '@example.com');
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: 'bruteforce-' . bin2hex(random_bytes(4)) . '@example.com');
+        $ip = '198.18.1.' . random_int(1, 254);
 
         $statuses = [];
         for ($i = 1; $i <= 11; ++$i) {
-            $body = $this->postSetup($this->setupRequestXml($buyer, 'wrong-secret-' . $i, 'C'), '198.18.0.' . $i);
-            $statuses[] = $this->client->getResponse()->getStatusCode() === 429 ? '429' : (1 === preg_match('/<Status code="(\d+)"/', $body, $m) ? $m[1] : '?');
+            $statuses[] = $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, 'wrong-secret-' . $i, 'C'), $ip));
         }
 
         self::assertSame(array_fill(0, 10, '401'), array_slice($statuses, 0, 10));
-        self::assertSame('429', $statuses[10], 'Brute force on one identity is limited even from many addresses');
+        self::assertSame('429', $statuses[10]);
+        self::assertSame('200', $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, $secret, 'C'), '198.18.2.' . random_int(1, 254))), 'Failures from one address do not lock the buyer out elsewhere');
+    }
+
+    public function testAuthenticationFailuresOfAnIdentityFromManyAddressesAreLimitedToo(): void
+    {
+        ['buyer' => $buyer] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: 'distributed-' . bin2hex(random_bytes(4)) . '@example.com');
+
+        $statuses = [];
+        for ($i = 1; $i <= 51; ++$i) {
+            $statuses[] = $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, 'wrong-secret-' . $i, 'C'), '198.19.' . intdiv($i, 250) . '.' . ($i % 250 + 1)));
+        }
+
+        self::assertNotContains('429', array_slice($statuses, 0, 50));
+        self::assertSame('429', $statuses[50], 'A distributed brute force on one identity is limited');
+    }
+
+    private function cxmlStatus(string $body): string
+    {
+        if ($this->client->getResponse()->getStatusCode() === 429) {
+            return '429';
+        }
+
+        return 1 === preg_match('/<Status code="(\d+)"/', $body, $m) ? $m[1] : '?';
     }
 
     public function testATimestampWithoutAnAbsoluteDateIsRefused(): void

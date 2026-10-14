@@ -6,6 +6,7 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\LimiterInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
@@ -53,6 +54,7 @@ final readonly class CxmlEndpointAction
         private ReplayGuard $replayGuard,
         private RateLimiterFactory $setupLimiter,
         private RateLimiterFactory $authenticationFailureLimiter,
+        private RateLimiterFactory $identityFailureLimiter,
         private MessageLogger $messageLogger,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
@@ -67,7 +69,16 @@ final readonly class CxmlEndpointAction
         // Rate-limited requests are not stored (a burst must not fill the journal).
         if ($response->getStatusCode() !== Response::HTTP_TOO_MANY_REQUESTS) {
             $status = 1 === preg_match('/<Status code="(\d+)"/', (string) $response->getContent(), $matches) ? (int) $matches[1] : $response->getStatusCode();
-            $this->messageLogger->log(MessageLog::DIRECTION_IN, $exchange->messageType, $exchange->payloadId, $status, $request->getContent(), $exchange->buyer);
+            $this->messageLogger->log(
+                MessageLog::DIRECTION_IN,
+                $exchange->messageType,
+                $exchange->payloadId,
+                $status,
+                $request->getContent(),
+                $exchange->buyer,
+                authenticated: $exchange->buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface,
+                context: ['ip' => $request->getClientIp(), 'identity' => $exchange->identity],
+            );
         }
 
         return $response;
@@ -118,21 +129,27 @@ final readonly class CxmlEndpointAction
         }
         $exchange->messageType = $requestName;
         $exchange->payloadId = $header->payloadId;
+        $exchange->identity = mb_strtolower($header->fromDomain) . '|' . $header->fromIdentity;
         if (!in_array($requestName, ['PunchOutSetupRequest', 'ProfileRequest'], true)) {
             return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         }
 
         // Brute force on one identity is limited whatever the client address (several addresses or
         // a shared proxy): no Argon2id work once the failure budget of the identity is spent.
-        $failures = $this->authenticationFailureLimiter->create(mb_strtolower($header->fromDomain) . '|' . $header->fromIdentity);
-        if ($failures->consume(0)->getRemainingTokens() === 0) {
+        // Two budgets: per identity and address (one address cannot lock a buyer out), and per identity
+        // from all addresses (distributed brute force).
+        $failures = [
+            $this->authenticationFailureLimiter->create($exchange->identity . '|' . RateLimitKeys::ip($request->getClientIp())),
+            $this->identityFailureLimiter->create($exchange->identity),
+        ];
+        if ($failures[0]->consume(0)->getRemainingTokens() === 0 || $failures[1]->consume(0)->getRemainingTokens() === 0) {
             return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60', 'Cache-Control' => 'no-store']);
         }
 
         // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
         if ($header->sharedSecret === '') {
             $this->credentialVerifier->verify('_empty_secret_dummy_', null);
-            $failures->consume();
+            array_map(static fn (LimiterInterface $limiter): \Symfony\Component\RateLimiter\RateLimit => $limiter->consume(), $failures);
 
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }
@@ -143,7 +160,7 @@ final readonly class CxmlEndpointAction
 
         // Unknown buyer or wrong secret → 401 (same response to prevent identity enumeration)
         if (!$buyer instanceof Buyer || !$secretValid) {
-            $failures->consume();
+            array_map(static fn (LimiterInterface $limiter): \Symfony\Component\RateLimiter\RateLimit => $limiter->consume(), $failures);
 
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }

@@ -25,3 +25,6 @@ services:
     tmonier_punchout.test.authentication_failure_limiter:
         alias: limiter.tmonier_punchout_authentication_failure
         public: true
+    tmonier_punchout.test.identity_failure_limiter:
+        alias: limiter.tmonier_punchout_identity_failure
+        public: true

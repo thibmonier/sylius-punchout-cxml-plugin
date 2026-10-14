@@ -44,8 +44,13 @@ trait DatabaseTransactionTrait
         foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
             $limiter->create($ip)->reset();
         }
+        $identityFailures = static::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
+        self::assertInstanceOf(RateLimiterFactory::class, $identityFailures);
         foreach (['test-buyer@example.com', 'test-buyer-e2e@example.com'] as $identity) {
-            $failures->create('aribanetworkuserid|' . $identity)->reset();
+            $identityFailures->create('aribanetworkuserid|' . $identity)->reset();
+            foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
+                $failures->create('aribanetworkuserid|' . $identity . '|' . $ip)->reset();
+            }
         }
 
         $em = static::getContainer()->get(EntityManagerInterface::class);
