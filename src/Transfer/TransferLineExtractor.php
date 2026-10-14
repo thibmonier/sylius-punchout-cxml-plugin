@@ -9,7 +9,9 @@ use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 
 /**
- * Extracts TransferLine DTOs from a Sylius order.
+ * Extracts TransferLine DTOs from a Sylius order (R5: no channelTaxIncluded flag).
+ *
+ * The NetPriceCalculator auto-detects neutral vs non-neutral tax adjustments.
  */
 final readonly class TransferLineExtractor
 {
@@ -18,11 +20,9 @@ final readonly class TransferLineExtractor
     }
 
     /**
-     * @param bool $channelTaxIncluded whether the channel shows tax-inclusive prices
-     *
      * @return list<TransferLine>
      */
-    public function extract(OrderInterface $order, bool $channelTaxIncluded = false): array
+    public function extract(OrderInterface $order): array
     {
         $lines = [];
 
@@ -34,7 +34,7 @@ final readonly class TransferLineExtractor
             }
 
             $code = $variant->getCode() ?? '';
-            $unitNetPrice = $this->netPriceCalculator->calculateUnitNetPrice($item, $channelTaxIncluded);
+            $unitNetPrice = $this->netPriceCalculator->calculateUnitNetPrice($item);
             $currency = $order->getCurrencyCode() ?? 'EUR';
             $description = $item->getProductName() ?? $code;
             $quantity = $item->getQuantity();

@@ -20,7 +20,6 @@
         <field name="returnDomains" type="json" nullable="false" column="return_domains"/>
         <field name="iframeOrigins" type="json" nullable="false" column="iframe_origins"/>
         <field name="locale" type="string" length="20" nullable="true"/>
-        <field name="taxIncluded" type="boolean" nullable="true" column="tax_included"/>
         <field name="includeShipping" type="boolean" nullable="true" column="include_shipping"/>
 
         <many-to-one field="customer"

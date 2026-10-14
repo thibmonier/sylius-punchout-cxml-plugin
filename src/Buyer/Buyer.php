@@ -35,8 +35,6 @@ class Buyer implements BuyerInterface, \Stringable
 
     private ?string $locale = null;
 
-    private ?bool $taxIncluded = null;
-
     private ?bool $includeShipping = null;
 
     /** @var Collection<int, BuyerIdentity> */
@@ -154,16 +152,6 @@ class Buyer implements BuyerInterface, \Stringable
     public function setLocale(?string $locale): void
     {
         $this->locale = $locale;
-    }
-
-    public function getTaxIncluded(): ?bool
-    {
-        return $this->taxIncluded;
-    }
-
-    public function setTaxIncluded(?bool $taxIncluded): void
-    {
-        $this->taxIncluded = $taxIncluded;
     }
 
     public function getIncludeShipping(): ?bool

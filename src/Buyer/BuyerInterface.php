@@ -57,10 +57,6 @@ interface BuyerInterface extends ResourceInterface
 
     public function setLocale(?string $locale): void;
 
-    public function getTaxIncluded(): ?bool;
-
-    public function setTaxIncluded(?bool $taxIncluded): void;
-
     public function getIncludeShipping(): ?bool;
 
     public function setIncludeShipping(?bool $includeShipping): void;
