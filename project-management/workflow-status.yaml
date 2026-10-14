@@ -85,7 +85,11 @@ phases:
       status: done           # CI 8/8 vert (2026-10-14)
       stories: [US-002, US-004, US-008, US-009, US-014, US-016, US-017]
       review: sprints/sprint-002/review-findings.md   # 2 majeurs (limite par identité, déconnexion fin de session) corrigés
-      next: sprint 3 — US-005 (UNSPSC, unités), US-010 (ProfileRequest), US-019 (taxes/port), US-022/023 (edit/inspect), US-024 (journal)
+    sprint_003:
+      status: done           # CI 8/8 vert (2026-10-15)
+      stories: [US-005, US-010, US-019, US-022, US-023, US-024]
+      review: sprints/sprint-003/review-findings.md   # 3 majeurs (journal, masquage DOM, réquisitions) corrigés
+      next: sprint 4 — US-003/012/020 (OCI), US-025 (purge, RGPD), US-028 (doctor), US-006 (company-accounts), US-027 (déjà couverte par les tests DTD)
 
 constraints:
   - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier
@@ -93,5 +97,5 @@ constraints:
   - aucun identifiant ni secret réaliste en dur dans les tests (GitGuardian)
   - pas de communication tant que le positionnement vs Sylius Plus n'est pas établi
 
-next_action: "Sprint 3 (re-punchout, conformité, journal) sur accord utilisateur"
+next_action: "Sprint 4 (OCI, RGPD, diagnostic) sur accord utilisateur"
 next_command: "/workflow:implement"
