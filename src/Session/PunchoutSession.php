@@ -54,7 +54,7 @@ class PunchoutSession implements PunchoutSessionInterface
     /** R4: buyer's From identity (from cXML Header/From/Credential) */
     private string $fromIdentity = '';
 
-    private \DateTimeImmutable $createdAt;
+    private readonly \DateTimeImmutable $createdAt;
 
     private \DateTimeImmutable $updatedAt;
 

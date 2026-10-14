@@ -40,7 +40,7 @@ final readonly class CredentialVerifier
 
         $credentials = $buyer->getActiveCredentials();
 
-        if (empty($credentials)) {
+        if ($credentials === []) {
             // No active credentials — still perform dummy verify to prevent timing attacks.
             $this->hasher->verify($secret, $this->dummyHash);
 

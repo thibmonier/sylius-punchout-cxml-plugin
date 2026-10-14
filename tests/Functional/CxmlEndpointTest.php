@@ -74,7 +74,7 @@ final class CxmlEndpointTest extends WebTestCase
     public function testSetupRequestReturns200WithStartUrl(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -103,7 +103,7 @@ final class CxmlEndpointTest extends WebTestCase
     public function testSetupRequestReturns401ForBadSecret(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -127,7 +127,7 @@ final class CxmlEndpointTest extends WebTestCase
     public function testSetupRequestRejectHttpReturnUrl(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -176,12 +176,12 @@ final class CxmlEndpointTest extends WebTestCase
     public function testDisabledBuyerReturns403(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         // Disable the buyer after creation
         $buyer->setEnabled(false);
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->flush();
 
@@ -213,7 +213,7 @@ final class CxmlEndpointTest extends WebTestCase
     public function testMissingSharedSecretReturns401(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);
@@ -261,7 +261,7 @@ final class CxmlEndpointTest extends WebTestCase
      */
     public function testTwoBuyersCannotShareTheSameFromIdentity(): void
     {
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         // First buyer with a specific identity
         $catalog->createBuyer(
@@ -288,7 +288,7 @@ final class CxmlEndpointTest extends WebTestCase
     public function testEndpointNeverSetsSessionCookie(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $ids = $this->extractIdentities($buyer);

@@ -116,7 +116,7 @@ final readonly class TestCatalog
             // but the default fixture user shop@example.com has verifiedAt=null.
             // Tests that test the unverified scenario must explicitly unset verifiedAt.
             $shopUser = $customer->getUser();
-            if ($shopUser !== null && method_exists($shopUser, 'setVerifiedAt') && !$shopUser->isVerified()) {
+            if ($shopUser instanceof \Sylius\Component\User\Model\UserInterface && method_exists($shopUser, 'setVerifiedAt') && !$shopUser->isVerified()) {
                 $shopUser->setVerifiedAt(new \DateTime());
             }
         }
@@ -155,7 +155,7 @@ final readonly class TestCatalog
         $em = $this->container->get(EntityManagerInterface::class);
         $variant = $this->getDefaultProductVariant();
 
-        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $quantity, $order, $em);
+        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $order, $em);
         for ($i = 0; $i < $quantity; ++$i) {
             $this->buildOrderItemUnit($item, $em);
         }
@@ -182,7 +182,7 @@ final readonly class TestCatalog
 
         $order = $this->buildCart($channel, $customer, $em);
 
-        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $quantity, $order, $em);
+        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $order, $em);
 
         // Add one OrderItemUnit per quantity (required by Sylius order item quantity tracking)
         for ($i = 0; $i < $quantity; ++$i) {
@@ -211,7 +211,7 @@ final readonly class TestCatalog
 
         $variant = $this->getDefaultProductVariant();
 
-        if ($existingOrder !== null) {
+        if ($existingOrder instanceof \Sylius\Component\Core\Model\OrderInterface) {
             // Re-attach to current EM (may be detached after HTTP requests)
             $order = $em->find($existingOrder::class, $existingOrder->getId());
             if (!$order instanceof OrderInterface) {
@@ -222,7 +222,7 @@ final readonly class TestCatalog
         }
 
         // 120.00 EUR TTC (= 12000 centimes)
-        $item = $this->buildOrderItem($variant, 12000, 1, $order, $em);
+        $item = $this->buildOrderItem($variant, 12000, $order, $em);
 
         // One unit with a neutral tax adjustment of 2000 centimes (20.00 EUR embedded tax)
         $unit = $this->buildOrderItemUnit($item, $em);
@@ -247,13 +247,13 @@ final readonly class TestCatalog
         // Re-fetch via repository to ensure entities are in the current EM identity map.
         // After HTTP requests through KernelBrowser, previously-loaded entities may be detached.
         $managedChannel = null;
-        if ($channel !== null) {
+        if ($channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
             $found = $this->container->get('sylius.repository.channel')->find($channel->getId());
             $managedChannel = $found instanceof ChannelInterface ? $found : null;
         }
 
         $managedCustomer = null;
-        if ($customer !== null) {
+        if ($customer instanceof \Sylius\Component\Core\Model\CustomerInterface) {
             $found = $this->container->get('sylius.repository.customer')->find($customer->getId());
             $managedCustomer = $found instanceof CustomerInterface ? $found : null;
         }
@@ -277,7 +277,6 @@ final readonly class TestCatalog
     private function buildOrderItem(
         ProductVariantInterface $variant,
         int $unitPriceCentimes,
-        int $quantity,
         OrderInterface $order,
         EntityManagerInterface $em,
     ): \Sylius\Component\Core\Model\OrderItemInterface {

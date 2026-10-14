@@ -40,6 +40,7 @@ final class NetPriceCalculator
                 // => netPrice = unitPrice - embeddedTax
                 $unitPrice -= $neutralTax;
             }
+
             // One unit is sufficient for the rate calculation
             break;
         }

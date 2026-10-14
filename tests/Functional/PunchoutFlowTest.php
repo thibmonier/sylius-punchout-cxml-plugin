@@ -174,7 +174,7 @@ final class PunchoutFlowTest extends WebTestCase
     public function testFullPunchoutFlow(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         // 1. Create buyer linked to shop@example.com customer
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithCustomer();
@@ -184,7 +184,7 @@ final class PunchoutFlowTest extends WebTestCase
         $setupResponse = $this->postSetupRequest($buyer, $secret, $returnUrl);
         $startUrl = $this->extractStartUrl($setupResponse);
         $token = $this->extractTokenFromStartUrl($startUrl);
-        $buyerCookie = $this->extractBuyerCookie($setupResponse);
+        $buyerCookie = $this->extractBuyerCookie();
 
         // 3. GET start URL → authenticate shopper, redirect to shop
         $client->request('GET', '/punchout/start/' . $token);
@@ -199,7 +199,7 @@ final class PunchoutFlowTest extends WebTestCase
         // After R1, StartAction creates the PunchOut cart on the session. We retrieve
         // it from the DB and add items directly (not via createCartWithItem which would
         // create a separate cart that TransferAction no longer uses after R2).
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $punchoutSession = $em->createQueryBuilder()
             ->select('s')
@@ -271,7 +271,7 @@ final class PunchoutFlowTest extends WebTestCase
     public function testTaxInclusivePriceStripping(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithTaxIncluded();
 
@@ -284,7 +284,7 @@ final class PunchoutFlowTest extends WebTestCase
         self::assertSame(302, $client->getResponse()->getStatusCode());
 
         // R1+R2: add the tax item directly to the PunchOut session cart
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $ttcSession = $em->createQueryBuilder()
             ->select('s')
@@ -325,7 +325,7 @@ final class PunchoutFlowTest extends WebTestCase
     public function testDisabledShopUserReturns403(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithCustomer(
             fromIdentity: 'test-disabled-user@example.com',
@@ -338,7 +338,7 @@ final class PunchoutFlowTest extends WebTestCase
         $shopUser = $customer->getUser();
         self::assertNotNull($shopUser, 'Customer must have a shop user');
         $shopUser->setEnabled(false);
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->flush();
 
@@ -366,11 +366,11 @@ final class PunchoutFlowTest extends WebTestCase
     public function testDisabledBuyerReturns403CxmlStatus(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
 
         $buyer->setEnabled(false);
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->flush();
 
@@ -426,7 +426,7 @@ final class PunchoutFlowTest extends WebTestCase
     public function testSimulatorEndpointRoundTrip(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithCustomer(
             fromIdentity: 'test-sim-buyer@example.com',
@@ -437,10 +437,8 @@ final class PunchoutFlowTest extends WebTestCase
         $client->request('GET', '/simulator/cxml');
         self::assertSame(200, $client->getResponse()->getStatusCode(), 'Simulator send page must return 200');
         self::assertStringContainsString('PunchOut', (string) $client->getResponse()->getContent());
-
         // --- POST the setup request directly to /punchout/cxml (simulating what the simulator does) ---
-        $ids = $this->extractIdentities($buyer);
-        $returnUrl = 'http://localhost/simulator/receive'; // simulator uses HTTP (internal call)
+        $this->extractIdentities($buyer); // simulator uses HTTP (internal call)
         // But wait — our ReturnUrlValidator blocks HTTP. The simulator uses its own HTTP returnUrl.
         // We use HTTPS for a valid URL, then we route the response manually.
         $returnUrl = 'https://ariba.example.com/punchout/receive';
@@ -454,7 +452,7 @@ final class PunchoutFlowTest extends WebTestCase
         self::assertSame(302, $client->getResponse()->getStatusCode(), 'Simulator: start must redirect to shop');
 
         // --- R1+R2: Add items to the PunchOut session's isolated cart ---
-        $emSim = static::getContainer()->get(EntityManagerInterface::class);
+        $emSim = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $emSim);
         $simSession = $emSim->createQueryBuilder()
             ->select('s')
@@ -498,14 +496,13 @@ final class PunchoutFlowTest extends WebTestCase
     // Private helper
     // -------------------------------------------------------------------------
 
-    private function extractBuyerCookie(string $setupResponseXml): string
+    private function extractBuyerCookie(): string
     {
         // BuyerCookie is not in the setup response — it's stored in the session.
         // We extract it from the setup request we sent, by parsing the session table.
         // Alternatively, parse it from the PunchOut session via the container.
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
-
         $result = $em->createQueryBuilder()
             ->select('s.buyerCookie')
             ->from(PunchoutSession::class, 's')

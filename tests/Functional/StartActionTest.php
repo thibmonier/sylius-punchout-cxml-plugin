@@ -17,7 +17,7 @@ final class StartActionTest extends WebTestCase
     public function testStartTokenConsumptionRedirectsToShop(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         // ADR-0003: StartAction requires a linked customer — use createBuyerWithCustomer()
         ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
@@ -29,12 +29,12 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
-        $issuer = static::getContainer()->get(StartTokenIssuer::class);
+        $issuer = self::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 
@@ -57,7 +57,7 @@ final class StartActionTest extends WebTestCase
     public function testHeadRequestDoesNotConsumeToken(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         // ADR-0003: the subsequent GET consumes the token and calls authenticate() — needs customer
         ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
@@ -69,12 +69,12 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
-        $issuer = static::getContainer()->get(StartTokenIssuer::class);
+        $issuer = self::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 
@@ -94,7 +94,7 @@ final class StartActionTest extends WebTestCase
     public function testConsumedTokenCannotBeReused(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         // ADR-0003: first GET authenticates the shopper — needs a linked customer
         ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
@@ -106,12 +106,12 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
-        $issuer = static::getContainer()->get(StartTokenIssuer::class);
+        $issuer = self::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 
@@ -132,14 +132,14 @@ final class StartActionTest extends WebTestCase
     public function testUnverifiedUserOnVerificationRequiredChannelReturns403(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         ['buyer' => $buyer] = $catalog->createBuyerWithCustomer(
             fromIdentity: 'test-unverified@example.com',
             senderIdentity: 'test-unverified-sys@example.com',
         );
 
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
         // Make the shop user unverified
@@ -166,7 +166,7 @@ final class StartActionTest extends WebTestCase
         $em->persist($session);
         $em->flush();
 
-        $issuer = static::getContainer()->get(\Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer::class);
+        $issuer = self::getContainer()->get(\Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer::class);
         self::assertInstanceOf(\Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 300);
 
@@ -180,7 +180,7 @@ final class StartActionTest extends WebTestCase
     public function testExpiredTokenReturns404(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
         ['buyer' => $buyer] = $catalog->createBuyer();
 
         $session = new PunchoutSession();
@@ -191,13 +191,13 @@ final class StartActionTest extends WebTestCase
         $session->setExtrinsics([]);
         $session->setItemsOut([]);
 
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist($session);
         $em->flush();
 
         // Issue a token with TTL = 0 seconds → immediately expired
-        $issuer = static::getContainer()->get(StartTokenIssuer::class);
+        $issuer = self::getContainer()->get(StartTokenIssuer::class);
         self::assertInstanceOf(StartTokenIssuer::class, $issuer);
         $token = $issuer->issue($session, 0);
 

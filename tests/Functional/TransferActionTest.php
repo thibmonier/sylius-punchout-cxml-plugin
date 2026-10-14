@@ -47,7 +47,7 @@ final class TransferActionTest extends WebTestCase
     public function testTransferWithoutCsrfTokenReturns422(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         // Authenticate via start URL to establish active PunchOut session
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithCustomer(
@@ -71,7 +71,7 @@ final class TransferActionTest extends WebTestCase
     public function testTransferWithTamperedReturnUrlReturns403(): void
     {
         $client = $this->client;
-        $catalog = new TestCatalog(static::getContainer());
+        $catalog = new TestCatalog(self::getContainer());
 
         ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyerWithCustomer(
             fromIdentity: 'test-r6-buyer@example.com',
@@ -80,7 +80,7 @@ final class TransferActionTest extends WebTestCase
         $this->performSetupAndStart($buyer, $secret);
 
         // Add items to the PunchOut session's cart
-        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
         $session = $em->createQueryBuilder()
@@ -94,7 +94,7 @@ final class TransferActionTest extends WebTestCase
 
         // Add item to the PunchOut cart (required for transfer to proceed past cart-not-found check)
         $punchoutCart = $session->getCart();
-        if ($punchoutCart !== null) {
+        if ($punchoutCart instanceof \Sylius\Component\Core\Model\OrderInterface) {
             $catalog->addItemToOrder($punchoutCart, 10000, 1);
         }
 

@@ -105,7 +105,7 @@ final class ReturnUrlValidator
     private function isBlockedIp(string $host): bool
     {
         // IPv6 loopback and unspecified address (already lowercased by caller)
-        if ($host === '::1' || $host === '[::1]' || $host === '::' || $host === '[::]') {
+        if (in_array($host, ['::1', '[::1]', '::', '[::]'], true)) {
             return true;
         }
 
@@ -115,10 +115,6 @@ final class ReturnUrlValidator
         // IPv6-mapped IPv4 (::ffff:x.x.x.x) — always block as SSRF vector
         if (str_starts_with(strtolower($ip), '::ffff:')) {
             $ipv4 = substr($ip, 7);
-            // Block all IPv6-mapped IPv4; additionally check private ranges for clarity
-            if (filter_var($ipv4, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false) {
-                return true;
-            }
 
             // Block even if the IPv4 part is not a valid address (malformed SSRF attempt)
             return true;

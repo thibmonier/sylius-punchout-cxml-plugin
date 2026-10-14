@@ -82,6 +82,7 @@ final readonly class TransferAction
         // 4. R6: Re-validate the returnUrl stored in the session
         $returnUrl = $session->getReturnUrl();
         $buyer = $session->getBuyer();
+
         try {
             $this->returnUrlValidator->validate($returnUrl, $buyer);
         } catch (InvalidReturnUrlException) {
