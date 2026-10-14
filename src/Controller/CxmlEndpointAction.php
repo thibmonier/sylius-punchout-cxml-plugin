@@ -79,6 +79,13 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Invalid cXML structure');
         }
 
+        // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
+        if ($setupData->sharedSecret === '') {
+            $this->credentialVerifier->verify('_empty_secret_dummy_', null);
+
+            return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
+        }
+
         // Resolve buyer by identities + verify secret (constant-time even when buyer is unknown)
         $buyer = $this->buyerResolver->resolveByIdentities(
             $setupData->fromDomain,
@@ -140,7 +147,7 @@ final readonly class CxmlEndpointAction
     {
         $xml = $this->responseWriter->writeError($code, $text);
 
-        return $this->xmlResponse($xml, $code === CxmlStatus::UNAUTHORIZED ? 200 : 200);
+        return $this->xmlResponse($xml, 200);
     }
 
     private function xmlResponse(string $xml, int $httpStatus = 200): Response

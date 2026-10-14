@@ -18,6 +18,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\NetPriceCalculator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\TransferLineExtractor;
+use Twig\Environment as TwigEnvironment;
 
 /**
  * POST /punchout/transfer
@@ -37,6 +38,7 @@ final readonly class TransferAction
         private PayloadIdGenerator $payloadIdGenerator,
         private EntityManagerInterface $entityManager,
         private TokenStorageInterface $tokenStorage,
+        private TwigEnvironment $twig,
         private bool $keepTransferredCarts = false,
     ) {
     }
@@ -45,7 +47,10 @@ final readonly class TransferAction
     {
         $session = $this->currentPunchoutSession->getCurrent();
         if (!$session instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession || !$session->isActive()) {
-            return new Response('No active PunchOut session', Response::HTTP_FORBIDDEN);
+            $forbidden = new Response('No active PunchOut session', Response::HTTP_FORBIDDEN);
+            $forbidden->headers->set('Cache-Control', 'no-store');
+
+            return $forbidden;
         }
         // Find the current cart for the authenticated shopper
         $user = $this->tokenStorage->getToken()?->getUser();
@@ -80,24 +85,39 @@ final readonly class TransferAction
         }
         // Build a self-submitting form that POSTs the cXML to the returnUrl
         // cXML-base64 is the standard field name for cXML PunchOut transfer
-        $returnUrl = htmlspecialchars($session->getReturnUrl(), \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+        $returnUrl = $session->getReturnUrl();
         $xmlBase64 = base64_encode($xml);
-        $xmlBase64Escaped = htmlspecialchars($xmlBase64, \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
-        $html = <<<HTML
-            <!DOCTYPE html>
-            <html lang="en">
-            <head><meta charset="UTF-8"><title>Transferring cart…</title></head>
-            <body>
-            <form id="f" method="post" action="{$returnUrl}" target="_top">
-                <input type="hidden" name="cXML-base64" value="{$xmlBase64Escaped}">
-                <button type="submit">Transfer to procurement system</button>
-            </form>
-            <script>document.getElementById('f').submit();</script>
-            </body>
-            </html>
-            HTML;
 
-        return new Response($html, Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
+        // Generate a cryptographically random nonce for the inline script
+        $nonce = base64_encode(random_bytes(16));
+
+        // Extract the origin of the returnUrl for the form-action CSP directive
+        $parsedReturnUrl = parse_url($returnUrl);
+        $returnUrlOrigin = sprintf(
+            '%s://%s%s',
+            $parsedReturnUrl['scheme'] ?? 'https',
+            $parsedReturnUrl['host'] ?? '',
+            isset($parsedReturnUrl['port']) ? ':' . $parsedReturnUrl['port'] : '',
+        );
+
+        $html = $this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/transfer.html.twig', [
+            'returnUrl' => $returnUrl,
+            'xmlBase64' => $xmlBase64,
+            'nonce' => $nonce,
+        ]);
+
+        $response = new Response($html, Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
+        $response->headers->set('Cache-Control', 'no-store');
+        $response->headers->set(
+            'Content-Security-Policy',
+            sprintf(
+                "default-src 'none'; script-src 'nonce-%s'; form-action %s; base-uri 'none'",
+                $nonce,
+                $returnUrlOrigin,
+            ),
+        );
+
+        return $response;
     }
 
     private function resolveCart(UserInterface $user, PunchoutSession $session): ?OrderInterface

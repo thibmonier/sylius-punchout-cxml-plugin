@@ -38,6 +38,7 @@ final readonly class SetupResponseWriter
         $cxml->setAttribute('version', self::CXML_VERSION);
         $cxml->setAttribute('payloadID', $this->payloadIdGenerator->generate($hostname));
         $cxml->setAttribute('timestamp', $this->timestamp());
+        $cxml->setAttribute('inReplyTo', $buyerPayloadId);
         $doc->appendChild($cxml);
 
         // Response/Status
@@ -84,7 +85,8 @@ final readonly class SetupResponseWriter
         $response = $doc->createElement('Response');
         $cxml->appendChild($response);
 
-        $status = $doc->createElement('Status', htmlspecialchars($text));
+        $status = $doc->createElement('Status');
+        $status->appendChild($doc->createTextNode($text));
         $status->setAttribute('code', (string) $code);
         $status->setAttribute('text', $text);
         $response->appendChild($status);

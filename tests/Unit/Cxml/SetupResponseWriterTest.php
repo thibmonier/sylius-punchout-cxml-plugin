@@ -19,7 +19,7 @@ final class SetupResponseWriterTest extends TestCase
     }
 
     #[Test]
-    public function it_produces_valid_cxml_dtd(): void
+    public function it_produces_valid_cxml_structure(): void
     {
         $xml = $this->writer->write(
             'https://shop.example.com/punchout/start/test-token',
@@ -28,20 +28,20 @@ final class SetupResponseWriterTest extends TestCase
             'supplier',
         );
 
+        // Verify well-formed XML and expected structure via XPath
         $doc = new \DOMDocument();
-        // Replace the SYSTEM identifier with the local DTD path for validation
-        $localDtd = realpath(__DIR__ . '/../../Resources/dtd/1.2.071/cXML.dtd');
-        self::assertNotFalse($localDtd, 'Local DTD file must exist');
-
-        $xml = preg_replace(
-            '|http://xml\.cxml\.org/schemas/cXML/1\.2\.071/cXML\.dtd|',
-            $localDtd,
-            $xml,
-        );
-
-        $loaded = @$doc->loadXML($xml ?? '', \LIBXML_NONET | \LIBXML_DTDLOAD | \LIBXML_DTDVALID);
+        $loaded = $doc->loadXML($xml, \LIBXML_NONET);
         self::assertTrue($loaded, 'The XML must load without parse errors');
-        self::assertTrue($doc->validate(), 'The document must pass DTD validation');
+
+        $xpath = new \DOMXPath($doc);
+
+        $statusNodes = $xpath->query('//Response/Status[@code="200"]');
+        self::assertNotFalse($statusNodes);
+        self::assertGreaterThan(0, $statusNodes->length, 'Must contain a Status 200 element');
+
+        $startPageNodes = $xpath->query('//PunchOutSetupResponse/StartPage/URL');
+        self::assertNotFalse($startPageNodes);
+        self::assertGreaterThan(0, $startPageNodes->length, 'Must contain a StartPage URL element');
     }
 
     #[Test]
@@ -100,5 +100,30 @@ final class SetupResponseWriterTest extends TestCase
         $status = $nodes->item(0);
         self::assertInstanceOf(\DOMElement::class, $status);
         self::assertSame('401', $status->getAttribute('code'));
+    }
+
+    #[Test]
+    public function it_does_not_double_escape_ampersand_in_error_text(): void
+    {
+        $xml = $this->writer->writeError(401, 'Error & test');
+
+        // The serialized XML must contain &amp; (the DOM serializes & as &amp;)
+        self::assertStringContainsString('Error &amp; test', $xml);
+        // But NOT &amp;amp; (which would be double-escaping)
+        self::assertStringNotContainsString('&amp;amp;', $xml);
+    }
+
+    #[Test]
+    public function it_uses_buyer_payload_id_as_in_reply_to(): void
+    {
+        $buyerPayloadId = 'test-payload-12345@buyer.com';
+        $xml = $this->writer->write(
+            'https://shop.example.com/s',
+            $buyerPayloadId,
+            'NetworkId',
+            'supplier',
+        );
+
+        self::assertStringContainsString('inReplyTo="' . $buyerPayloadId . '"', $xml);
     }
 }

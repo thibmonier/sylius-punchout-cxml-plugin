@@ -21,7 +21,6 @@ vendor/bin/phpstan analyse --memory-limit=1G
 vendor/bin/ecs check
 vendor/bin/rector process --dry-run
 vendor/bin/console lint:container
-vendor/bin/console tmonier:punchout:doctor
 ```
 
 Local env overrides (gitignored): `compose.override.yml` (MySQL on 3334, MailHog on 8053/1053),

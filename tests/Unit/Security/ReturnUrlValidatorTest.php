@@ -58,6 +58,8 @@ final class ReturnUrlValidatorTest extends TestCase
             'RFC1918 192.168.x' => ['https://192.168.1.1/return'],
             'link-local' => ['https://169.254.0.1/return'],
             'localhost' => ['https://localhost/return'],
+            'IPv6-mapped IPv4 loopback' => ['https://[::ffff:127.0.0.1]/return'],
+            'IPv6 unspecified ::' => ['https://[::]/return'],
         ];
     }
 
@@ -96,6 +98,17 @@ final class ReturnUrlValidatorTest extends TestCase
         $buyer->method('getReturnDomains')->willReturn([]);
 
         $this->validator->validate('https://any.example.com/return', $buyer);
+        $this->addToAssertionCount(1);
+    }
+
+    #[Test]
+    public function it_normalizes_host_to_lowercase_for_whitelist_comparison(): void
+    {
+        $buyer = $this->createMock(BuyerInterface::class);
+        $buyer->method('getReturnDomains')->willReturn(['ariba.example.com']);
+
+        // URL with uppercase host — must match the lowercase whitelist entry
+        $this->validator->validate('https://ARIBA.EXAMPLE.COM/return', $buyer);
         $this->addToAssertionCount(1);
     }
 }

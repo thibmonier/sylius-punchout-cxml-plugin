@@ -66,7 +66,7 @@ final class Version20261014000001 extends AbstractMigration
         $identity->addColumn('identity', Types::STRING, ['length' => 255, 'notnull' => true]);
         $identity->setPrimaryKey(['id']);
         $identity->addIndex(['buyer_id'], 'IDX_FC4E87DD6C755722');
-        $identity->addUniqueIndex(['buyer_id', 'role', 'domain', 'identity'], 'uniq_buyer_identity');
+        $identity->addUniqueIndex(['role', 'domain', 'identity'], 'uniq_buyer_identity');
         $identity->addForeignKeyConstraint(
             'tmonier_punchout_buyer',
             ['buyer_id'],

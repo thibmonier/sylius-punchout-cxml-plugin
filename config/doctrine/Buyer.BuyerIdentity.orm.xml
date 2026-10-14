@@ -23,7 +23,7 @@
         </many-to-one>
 
         <unique-constraints>
-            <unique-constraint columns="buyer_id,role,domain,identity" name="uniq_buyer_identity"/>
+            <unique-constraint columns="role,domain,identity" name="uniq_buyer_identity"/>
         </unique-constraints>
 
     </entity>

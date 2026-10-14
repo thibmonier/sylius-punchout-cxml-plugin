@@ -73,7 +73,8 @@ final class ReturnUrlValidator
             return false;
         }
 
-        $host = $parsed['host'] ?? '';
+        // Normalize host to lowercase before any comparison (hostnames are case-insensitive)
+        $host = strtolower($parsed['host'] ?? '');
         if ($host === '') {
             return false;
         }
@@ -103,13 +104,25 @@ final class ReturnUrlValidator
 
     private function isBlockedIp(string $host): bool
     {
-        // IPv6 loopback
-        if ($host === '::1' || $host === '[::1]') {
+        // IPv6 loopback and unspecified address (already lowercased by caller)
+        if ($host === '::1' || $host === '[::1]' || $host === '::' || $host === '[::]') {
             return true;
         }
 
         // Strip brackets for IPv6
         $ip = trim($host, '[]');
+
+        // IPv6-mapped IPv4 (::ffff:x.x.x.x) — always block as SSRF vector
+        if (str_starts_with(strtolower($ip), '::ffff:')) {
+            $ipv4 = substr($ip, 7);
+            // Block all IPv6-mapped IPv4; additionally check private ranges for clarity
+            if (filter_var($ipv4, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false) {
+                return true;
+            }
+
+            // Block even if the IPv4 part is not a valid address (malformed SSRF attempt)
+            return true;
+        }
 
         // Is it an IPv4 address?
         if (filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false) {

@@ -26,19 +26,29 @@ final readonly class CredentialVerifier
 
     /**
      * Returns true only when $secret matches at least one active credential of $buyer.
-     * When $buyer is null, performs a dummy check to maintain constant-time behaviour.
+     * When $buyer is null or has no active credentials, performs a dummy check via the
+     * hasher to maintain constant-time behaviour and prevent timing-based enumeration.
      */
     public function verify(string $secret, ?BuyerInterface $buyer): bool
     {
         if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
             // Constant-time dummy verification — always returns false.
-            password_verify($secret, $this->dummyHash);
+            $this->hasher->verify($secret, $this->dummyHash);
 
             return false;
         }
 
-        foreach ($buyer->getActiveCredentials() as $credential) {
-            if (password_verify($secret, $credential->getPasswordHash())) {
+        $credentials = $buyer->getActiveCredentials();
+
+        if (empty($credentials)) {
+            // No active credentials — still perform dummy verify to prevent timing attacks.
+            $this->hasher->verify($secret, $this->dummyHash);
+
+            return false;
+        }
+
+        foreach ($credentials as $credential) {
+            if ($this->hasher->verify($secret, $credential->getPasswordHash())) {
                 return true;
             }
         }
