@@ -51,4 +51,20 @@ trait DatabaseTransactionTrait
 
         parent::tearDown();
     }
+
+    /**
+     * Returns a valid CSRF token value for the given intent.
+     *
+     * The token is generated within a real HTTP request to the test-only
+     * /simulator/csrf-token endpoint, so the Symfony session is active when
+     * the CSRF manager generates the token. Using the same client (and therefore
+     * the same session cookie) ensures the token is valid for the next request.
+     */
+    protected function getCsrfToken(string $intent): string
+    {
+        $this->client->request('GET', '/simulator/csrf-token?intent=' . urlencode($intent));
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        return (string) ($data['token'] ?? '');
+    }
 }

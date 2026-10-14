@@ -125,6 +125,58 @@ final class StartActionTest extends WebTestCase
     }
 
     /**
+     * R7: If the shop's channel requires account verification and the buyer's linked
+     * shop user has not verified their email (verifiedAt = null), StartAction must
+     * return 403 and cancel the session.
+     */
+    public function testUnverifiedUserOnVerificationRequiredChannelReturns403(): void
+    {
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
+
+        ['buyer' => $buyer] = $catalog->createBuyerWithCustomer(
+            fromIdentity: 'test-unverified@example.com',
+            senderIdentity: 'test-unverified-sys@example.com',
+        );
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        // Make the shop user unverified
+        $customer = $buyer->getCustomer();
+        self::assertNotNull($customer);
+        $shopUser = $customer->getUser();
+        self::assertNotNull($shopUser);
+        $shopUser->setVerifiedAt(null);
+
+        // Require account verification on the channel
+        $channel = $buyer->getChannel();
+        self::assertNotNull($channel);
+        if (method_exists($channel, 'setAccountVerificationRequired')) {
+            $channel->setAccountVerificationRequired(true);
+        }
+        $em->flush();
+
+        $session = new \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession();
+        $session->setBuyer($buyer);
+        $session->setOperation('create');
+        $session->setBuyerCookie('COOKIE-' . bin2hex(random_bytes(8)));
+        $session->setReturnUrl('https://ariba.example.com/return');
+        $session->setExtrinsics([]);
+        $session->setItemsOut([]);
+
+        $em->persist($session);
+        $em->flush();
+
+        $issuer = static::getContainer()->get(\Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer::class);
+        self::assertInstanceOf(\Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer::class, $issuer);
+        $token = $issuer->issue($session, 300);
+
+        $client->request('GET', '/punchout/start/' . $token);
+        self::assertSame(403, $client->getResponse()->getStatusCode(), 'Unverified user on verification-required channel must get 403');
+    }
+
+    /**
      * US-013: an expired token (TTL = 0 seconds in the past) must return 404.
      */
     public function testExpiredTokenReturns404(): void

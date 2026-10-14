@@ -195,11 +195,30 @@ final class PunchoutFlowTest extends WebTestCase
             'Start response must not set a punchout cookie',
         );
 
-        // 4. Create a cart with 1 item (unit price 100.00 EUR = 10000 centimes)
-        $catalog->createCartWithItem($buyer, unitPriceCentimes: 10000, quantity: 1);
+        // 4. R1+R2: Add items to the PunchOut session's isolated cart.
+        // After R1, StartAction creates the PunchOut cart on the session. We retrieve
+        // it from the DB and add items directly (not via createCartWithItem which would
+        // create a separate cart that TransferAction no longer uses after R2).
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $punchoutSession = $em->createQueryBuilder()
+            ->select('s')
+            ->from(PunchoutSession::class, 's')
+            ->orderBy('s.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(PunchoutSession::class, $punchoutSession);
+        $punchoutCart = $punchoutSession->getCart();
+        self::assertNotNull($punchoutCart, 'StartAction must have created a PunchOut cart (R1)');
+        $catalog->addItemToOrder($punchoutCart, unitPriceCentimes: 10000, quantity: 1);
 
-        // 5. POST /punchout/transfer
-        $client->request('POST', '/punchout/transfer');
+        // 5. POST /punchout/transfer (R3: include CSRF token).
+        // getCsrfToken() makes a GET to the test-only /simulator/csrf-token endpoint,
+        // which generates the token within a live request (session active), then the
+        // next POST reuses the same session cookie — so the token is valid.
+        $csrfToken = $this->getCsrfToken('tmonier_punchout_transfer');
+        $client->request('POST', '/punchout/transfer', ['_csrf_token' => $csrfToken]);
         $response = $client->getResponse();
         self::assertSame(200, $response->getStatusCode(), 'Transfer must return 200');
 
@@ -237,7 +256,8 @@ final class PunchoutFlowTest extends WebTestCase
         $this->validateCxmlAgainstDtd($cxml);
 
         // 9. Re-transfer must be refused (session is now transferred/closed)
-        $client->request('POST', '/punchout/transfer');
+        $csrfToken2 = $this->getCsrfToken('tmonier_punchout_transfer');
+        $client->request('POST', '/punchout/transfer', ['_csrf_token' => $csrfToken2]);
         self::assertSame(403, $client->getResponse()->getStatusCode(), 'Re-transfer after session close must return 403');
     }
 
@@ -263,10 +283,25 @@ final class PunchoutFlowTest extends WebTestCase
         $client->request('GET', '/punchout/start/' . $token);
         self::assertSame(302, $client->getResponse()->getStatusCode());
 
-        // Create cart: 120.00 TTC with 20.00 tax → 100.00 HT
-        $catalog->createCartWithTaxItem($buyer);
+        // R1+R2: add the tax item directly to the PunchOut session cart
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $ttcSession = $em->createQueryBuilder()
+            ->select('s')
+            ->from(PunchoutSession::class, 's')
+            ->orderBy('s.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(PunchoutSession::class, $ttcSession);
+        $ttcCart = $ttcSession->getCart();
+        self::assertNotNull($ttcCart, 'PunchOut cart must exist after StartAction (R1)');
+        // Build cart with TTC item via catalog helper
+        $catalog->createCartWithTaxItem($buyer, $ttcCart);
 
-        $client->request('POST', '/punchout/transfer');
+        // R3: include CSRF token
+        $csrfTtcToken = $this->getCsrfToken('tmonier_punchout_transfer');
+        $client->request('POST', '/punchout/transfer', ['_csrf_token' => $csrfTtcToken]);
         self::assertSame(200, $client->getResponse()->getStatusCode());
 
         $html = (string) $client->getResponse()->getContent();
@@ -418,11 +453,24 @@ final class PunchoutFlowTest extends WebTestCase
         $client->request('GET', '/punchout/start/' . $token);
         self::assertSame(302, $client->getResponse()->getStatusCode(), 'Simulator: start must redirect to shop');
 
-        // --- Create cart ---
-        $catalog->createCartWithItem($buyer, 5000, 2); // 2 items × 50.00 = 100.00 total
+        // --- R1+R2: Add items to the PunchOut session's isolated cart ---
+        $emSim = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $emSim);
+        $simSession = $emSim->createQueryBuilder()
+            ->select('s')
+            ->from(PunchoutSession::class, 's')
+            ->orderBy('s.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(PunchoutSession::class, $simSession);
+        $simCart = $simSession->getCart();
+        self::assertNotNull($simCart, 'PunchOut cart must exist (R1)');
+        $catalog->addItemToOrder($simCart, 5000, 2); // 2 items × 50.00 = 100.00 total
 
-        // --- POST /punchout/transfer ---
-        $client->request('POST', '/punchout/transfer');
+        // --- POST /punchout/transfer (R3: include CSRF token) ---
+        $csrfSimToken = $this->getCsrfToken('tmonier_punchout_transfer');
+        $client->request('POST', '/punchout/transfer', ['_csrf_token' => $csrfSimToken]);
         self::assertSame(200, $client->getResponse()->getStatusCode(), 'Simulator: transfer must return 200');
 
         $html = (string) $client->getResponse()->getContent();

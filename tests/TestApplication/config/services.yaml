@@ -2,4 +2,5 @@ services:
     Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController:
         arguments:
             $twig: '@twig'
+            $csrfTokenManager: '@security.csrf.token_manager'
         public: true

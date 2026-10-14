@@ -110,6 +110,15 @@ final readonly class TestCatalog
         $customer = $this->getDefaultShopCustomer();
         if ($customer instanceof CustomerInterface) {
             $buyer->setCustomer($customer);
+
+            // R7: ensure the shop user is verified so the happy path works.
+            // The channel may require account verification (account_verification_required=1),
+            // but the default fixture user shop@example.com has verifiedAt=null.
+            // Tests that test the unverified scenario must explicitly unset verifiedAt.
+            $shopUser = $customer->getUser();
+            if ($shopUser !== null && method_exists($shopUser, 'setVerifiedAt') && !$shopUser->isVerified()) {
+                $shopUser->setVerifiedAt(new \DateTime());
+            }
         }
 
         $em->flush();
@@ -119,20 +128,38 @@ final readonly class TestCatalog
 
     /**
      * Creates a buyer for a TTC (tax-inclusive) channel test.
-     * Buyer has taxIncluded=true; use with createCartWithTaxItem().
+     * R5: taxIncluded flag removed — neutral tax adjustments are auto-detected.
+     * Use with createCartWithTaxItem() which creates neutral adjustments.
      *
      * @return array{buyer: Buyer, secret: string}
      */
     public function createBuyerWithTaxIncluded(): array
     {
-        ['buyer' => $buyer, 'secret' => $secret] = $this->createBuyerWithCustomer(
+        return $this->createBuyerWithCustomer(
             fromIdentity: 'test-buyer-ttc@example.com',
             senderIdentity: 'test-system-ttc@example.com',
         );
-        $buyer->setTaxIncluded(true);
-        $this->container->get(EntityManagerInterface::class)->flush();
+    }
 
-        return ['buyer' => $buyer, 'secret' => $secret];
+    /**
+     * Adds an order item (and one unit per quantity) directly to an existing order.
+     * Used to populate the PunchOut session's isolated cart (R1+R2).
+     *
+     * @param int $unitPriceCentimes unit price in centimes (e.g. 10000 = 100.00 EUR)
+     */
+    public function addItemToOrder(
+        OrderInterface $order,
+        int $unitPriceCentimes = 10000,
+        int $quantity = 1,
+    ): void {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $variant = $this->getDefaultProductVariant();
+
+        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $quantity, $order, $em);
+        for ($i = 0; $i < $quantity; ++$i) {
+            $this->buildOrderItemUnit($item, $em);
+        }
+        $em->flush();
     }
 
     /**
@@ -169,10 +196,14 @@ final readonly class TestCatalog
 
     /**
      * Creates a cart with a tax-inclusive item (120.00 TTC, 20% tax → 100.00 HT).
-     * unitPrice = 12000 centimes, taxAdjustment per unit = 2000 centimes.
+     * unitPrice = 12000 centimes, taxAdjustment per unit = 2000 centimes (neutral).
+     *
+     * If $existingOrder is provided, items are added to it instead of creating a new cart.
+     * This supports R1+R2 where TransferAction uses the PunchOut session's isolated cart.
      */
     public function createCartWithTaxItem(
         BuyerInterface $buyer,
+        ?OrderInterface $existingOrder = null,
     ): OrderInterface {
         $em = $this->container->get(EntityManagerInterface::class);
         $channel = $buyer->getChannel();
@@ -180,12 +211,20 @@ final readonly class TestCatalog
 
         $variant = $this->getDefaultProductVariant();
 
-        $order = $this->buildCart($channel, $customer, $em);
+        if ($existingOrder !== null) {
+            // Re-attach to current EM (may be detached after HTTP requests)
+            $order = $em->find($existingOrder::class, $existingOrder->getId());
+            if (!$order instanceof OrderInterface) {
+                $order = $existingOrder;
+            }
+        } else {
+            $order = $this->buildCart($channel, $customer, $em);
+        }
 
         // 120.00 EUR TTC (= 12000 centimes)
         $item = $this->buildOrderItem($variant, 12000, 1, $order, $em);
 
-        // One unit with a tax adjustment of 2000 centimes (20.00 EUR tax)
+        // One unit with a neutral tax adjustment of 2000 centimes (20.00 EUR embedded tax)
         $unit = $this->buildOrderItemUnit($item, $em);
         $adjustment = $this->buildTaxAdjustment(2000, $em);
         $unit->addAdjustment($adjustment);
@@ -274,7 +313,9 @@ final readonly class TestCatalog
         $adjustment = $this->container->get('sylius.factory.adjustment')->createNew();
         $adjustment->setType(\Sylius\Component\Core\Model\AdjustmentInterface::TAX_ADJUSTMENT);
         $adjustment->setAmount($amountCentimes);
-        $adjustment->setNeutral(false);
+        // R5: neutral=true means the tax is embedded in the unit price (TTC/tax-inclusive).
+        // NetPriceCalculator strips neutral tax to get the net price.
+        $adjustment->setNeutral(true);
         $adjustment->setLabel('VAT 20%');
         $em->persist($adjustment);
 

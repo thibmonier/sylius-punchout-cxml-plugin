@@ -7,3 +7,10 @@ tmonier_punchout_simulator_receive:
     path: /simulator/receive
     controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController::receive
     methods: [GET, POST]
+
+# Test-only: generates a CSRF token within a request context so tests can get valid tokens.
+# Never expose in production — only loaded via the TestApplication routes.
+tmonier_punchout_simulator_csrf_token:
+    path: /simulator/csrf-token
+    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController::csrfToken
+    methods: [GET]

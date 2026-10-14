@@ -21,23 +21,32 @@ final class NetPriceCalculatorTest extends TestCase
         $this->calculator = new NetPriceCalculator();
     }
 
+    /**
+     * R5: non-neutral adjustments mean the price is already net (tax excluded).
+     * The calculator must NOT strip non-neutral tax adjustments.
+     */
     #[Test]
     public function it_passes_through_price_when_tax_excluded(): void
     {
-        $item = $this->createOrderItem(10000, 1); // 100.00 € HT
+        // 120.00 EUR with non-neutral tax adjustment (tax excluded from unit price)
+        $item = $this->createOrderItemWithNonNeutralTax(12000, 2000);
 
-        $net = $this->calculator->calculateUnitNetPrice($item, false);
+        $net = $this->calculator->calculateUnitNetPrice($item);
 
-        self::assertSame('100.00', $net);
+        self::assertSame('120.00', $net);
     }
 
+    /**
+     * R5: neutral adjustments mean the price is tax-inclusive (TTC).
+     * The calculator MUST strip neutral tax adjustments to get the net price.
+     */
     #[Test]
     public function it_removes_tax_from_ttc_price_20_percent(): void
     {
-        // 120.00 TTC with 20% tax → 20.00 tax per unit → 100.00 net
-        $item = $this->createOrderItemWithTax(12000, 2000, 1);
+        // 120.00 TTC with neutral tax adjustment of 20.00 → net = 100.00
+        $item = $this->createOrderItemWithNeutralTax(12000, 2000);
 
-        $net = $this->calculator->calculateUnitNetPrice($item, true);
+        $net = $this->calculator->calculateUnitNetPrice($item);
 
         self::assertSame('100.00', $net);
     }
@@ -63,6 +72,16 @@ final class NetPriceCalculatorTest extends TestCase
         self::assertSame('0.00', $total);
     }
 
+    #[Test]
+    public function it_passes_through_price_when_no_adjustments(): void
+    {
+        $item = $this->createOrderItem(10000, 1); // 100.00 € no adjustments
+
+        $net = $this->calculator->calculateUnitNetPrice($item);
+
+        self::assertSame('100.00', $net);
+    }
+
     private function createOrderItem(int $fullDiscountedUnitPrice, int $quantity): OrderItem
     {
         $item = $this->createMock(OrderItem::class);
@@ -73,14 +92,18 @@ final class NetPriceCalculatorTest extends TestCase
         return $item;
     }
 
-    private function createOrderItemWithTax(
+    /**
+     * Creates an item with a NEUTRAL tax adjustment (tax-inclusive pricing).
+     * Neutral = the adjustment does NOT add to the total; it just records the embedded tax.
+     */
+    private function createOrderItemWithNeutralTax(
         int $fullDiscountedUnitPrice,
         int $taxAmountPerUnit,
-        int $quantity,
     ): OrderItem {
         $adjustment = $this->createMock(Adjustment::class);
         $adjustment->method('getType')->willReturn('tax');
         $adjustment->method('getAmount')->willReturn($taxAmountPerUnit);
+        $adjustment->method('isNeutral')->willReturn(true);
 
         $unit = $this->createMock(OrderItemUnit::class);
         $unit->method('getAdjustments')->willReturn(
@@ -89,7 +112,35 @@ final class NetPriceCalculatorTest extends TestCase
 
         $item = $this->createMock(OrderItem::class);
         $item->method('getFullDiscountedUnitPrice')->willReturn($fullDiscountedUnitPrice);
-        $item->method('getQuantity')->willReturn($quantity);
+        $item->method('getQuantity')->willReturn(1);
+        $item->method('getUnits')->willReturn(
+            new \Doctrine\Common\Collections\ArrayCollection([$unit]),
+        );
+
+        return $item;
+    }
+
+    /**
+     * Creates an item with a NON-NEUTRAL tax adjustment (tax-exclusive pricing).
+     * Non-neutral = the adjustment adds to the total; tax is computed on top of the unit price.
+     */
+    private function createOrderItemWithNonNeutralTax(
+        int $fullDiscountedUnitPrice,
+        int $taxAmountPerUnit,
+    ): OrderItem {
+        $adjustment = $this->createMock(Adjustment::class);
+        $adjustment->method('getType')->willReturn('tax');
+        $adjustment->method('getAmount')->willReturn($taxAmountPerUnit);
+        $adjustment->method('isNeutral')->willReturn(false);
+
+        $unit = $this->createMock(OrderItemUnit::class);
+        $unit->method('getAdjustments')->willReturn(
+            new \Doctrine\Common\Collections\ArrayCollection([$adjustment]),
+        );
+
+        $item = $this->createMock(OrderItem::class);
+        $item->method('getFullDiscountedUnitPrice')->willReturn($fullDiscountedUnitPrice);
+        $item->method('getQuantity')->willReturn(1);
         $item->method('getUnits')->willReturn(
             new \Doctrine\Common\Collections\ArrayCollection([$unit]),
         );

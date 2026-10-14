@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 
 /**
@@ -18,11 +20,14 @@ use Twig\Environment;
  * GET  /simulator/cxml  — display the "send setup request" form
  * POST /simulator/cxml  — build + POST the cXML setup request to /punchout/cxml
  * POST /simulator/receive — receive the PunchOutOrderMessage back from the browser redirect
+ * GET  /simulator/csrf-token?intent=X — generate a CSRF token within a request (test helper only)
  */
 final class SimulatorController
 {
-    public function __construct(private readonly Environment $twig)
-    {
+    public function __construct(
+        private readonly Environment $twig,
+        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+    ) {
     }
 
     public function send(Request $request): Response
@@ -53,6 +58,27 @@ final class SimulatorController
                 'cxml' => $cxml,
             ]),
         );
+    }
+
+    /**
+     * GET /simulator/csrf-token?intent=tmonier_punchout_transfer
+     *
+     * Generates (or retrieves) a CSRF token for the given intent within a real
+     * HTTP request context — where the Symfony session IS active — so tests can
+     * obtain a valid token without calling the CSRF manager outside a request.
+     *
+     * Returns JSON: { "token": "<value>" }
+     *
+     * THIS ENDPOINT IS ONLY AVAILABLE IN THE TEST APPLICATION.
+     * It is never registered in the production routes.
+     */
+    public function csrfToken(Request $request): JsonResponse
+    {
+        $intent = $request->query->getString('intent');
+
+        return new JsonResponse([
+            'token' => $this->csrfTokenManager->getToken($intent)->getValue(),
+        ]);
     }
 
     private function postSetupRequest(Request $request, ?string &$startUrl, ?string &$error): ?string
