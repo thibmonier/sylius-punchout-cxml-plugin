@@ -77,8 +77,11 @@ phases:
     started_at: 2026-10-14T17:30:00+02:00
     repository: https://github.com/thibmonier/sylius-punchout-cxml-plugin   # public, topics posés, vide (push après sprint 1)
     sprint_001:
-      status: in_progress    # builder lancé (brief sprints/sprint-001/builder-brief.md)
+      status: done           # CI 8/8 vert sur 1b160bf (2026-10-14)
       stories: [US-001, US-007, US-013, US-018, US-026]
+      pulled_forward: [US-015, US-021]   # blocage du checkout, annulation (message vide)
+      review: sprints/sprint-001/review-findings.md
+      next: sprint 2 en priorité US-008 (rate limiting, Argon2id coûteux) et US-004 (domaines obligatoires)
 
 constraints:
   - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier
@@ -86,5 +89,5 @@ constraints:
   - aucun identifiant ni secret réaliste en dur dans les tests (GitGuardian)
   - pas de communication tant que le positionnement vs Sylius Plus n'est pas établi
 
-next_action: "Sprint 1 en cours : revue, push, CI"
+next_action: "Sprint 2 (sécurité, iframe) sur accord utilisateur"
 next_command: "/workflow:implement"
