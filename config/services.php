@@ -38,7 +38,9 @@ return static function (ContainerConfigurator $container): void {
     // cXML core
     $services->set(SafeXmlLoader::class)->public();
     $services->set(PayloadIdGenerator::class);
-    $services->set(SetupRequestReader::class);
+    // R8: bind allowed extrinsics from config
+    $services->set(SetupRequestReader::class)
+        ->arg('$allowedExtrinsics', '%tmonier_punchout.allowed_extrinsics%');
     $services->set(SetupResponseWriter::class);
     $services->set(OrderMessageWriter::class);
 
@@ -89,16 +91,24 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.transfer.net_price_calculator', NetPriceCalculator::class);
     $services->alias('tmonier_punchout.transfer.transfer_line_extractor', TransferLineExtractor::class);
 
-    // Controllers
+    // Controllers — R8: bind config parameters; R3: inject CSRF token manager; R4: supplier identity
     $services->set(CxmlEndpointAction::class)
         ->tag('controller.service_arguments')
-        ->public();
+        ->public()
+        ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
+        ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
+
     $services->set(StartAction::class)
         ->tag('controller.service_arguments')
         ->public();
+
     $services->set(TransferAction::class)
         ->tag('controller.service_arguments')
-        ->public();
+        ->public()
+        ->arg('$keepTransferredCarts', '%tmonier_punchout.keep_transferred_carts%')
+        ->arg('$supplierDomain', '%tmonier_punchout.supplier_identity.domain%')
+        ->arg('$supplierIdentity', '%tmonier_punchout.supplier_identity.identity%');
+
     $services->set(CancelAction::class)
         ->tag('controller.service_arguments')
         ->public();
