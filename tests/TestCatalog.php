@@ -6,12 +6,15 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
-use Sylius\Component\Core\Repository\ProductRepositoryInterface;
-use Sylius\Component\Resource\Factory\FactoryInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
+use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Core\Model\ProductVariantInterface;
+use Sylius\Component\Order\Model\AdjustmentInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerCredential;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
+use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialHasher;
 
@@ -27,6 +30,9 @@ final readonly class TestCatalog
     }
 
     /**
+     * Creates a PunchOut buyer with identities and a hashed credential.
+     * No customer or channel linked.
+     *
      * @return array{buyer: Buyer, secret: string}
      */
     public function createBuyer(
@@ -73,10 +79,236 @@ final readonly class TestCatalog
         return ['buyer' => $buyer, 'secret' => $plainSecret];
     }
 
-    private function getChannel(): ?ChannelInterface
+    /**
+     * Creates a buyer linked to the default fixture customer (shop@example.com)
+     * and the default fixture channel (FASHION_WEB), ready for full E2E tests.
+     *
+     * @return array{buyer: Buyer, secret: string}
+     */
+    public function createBuyerWithCustomer(
+        string $fromDomain = 'AribaNetworkUserId',
+        string $fromIdentity = 'test-buyer-e2e@example.com',
+        string $senderDomain = 'AribaNetworkUserId',
+        string $senderIdentity = 'test-system-e2e@example.com',
+    ): array {
+        ['buyer' => $buyer, 'secret' => $secret] = $this->createBuyer(
+            $fromDomain,
+            $fromIdentity,
+            $senderDomain,
+            $senderIdentity,
+        );
+
+        $em = $this->container->get(EntityManagerInterface::class);
+
+        // Link to the default Sylius channel from fixtures
+        $channel = $this->getDefaultChannel();
+        if ($channel instanceof ChannelInterface) {
+            $buyer->setChannel($channel);
+        }
+
+        // Link to the default Sylius shop customer from fixtures
+        $customer = $this->getDefaultShopCustomer();
+        if ($customer instanceof CustomerInterface) {
+            $buyer->setCustomer($customer);
+        }
+
+        $em->flush();
+
+        return ['buyer' => $buyer, 'secret' => $secret];
+    }
+
+    /**
+     * Creates a buyer for a TTC (tax-inclusive) channel test.
+     * Buyer has taxIncluded=true; use with createCartWithTaxItem().
+     *
+     * @return array{buyer: Buyer, secret: string}
+     */
+    public function createBuyerWithTaxIncluded(): array
     {
-        // Returns the default Sylius channel installed by fixtures
+        ['buyer' => $buyer, 'secret' => $secret] = $this->createBuyerWithCustomer(
+            fromIdentity: 'test-buyer-ttc@example.com',
+            senderIdentity: 'test-system-ttc@example.com',
+        );
+        $buyer->setTaxIncluded(true);
+        $this->container->get(EntityManagerInterface::class)->flush();
+
+        return ['buyer' => $buyer, 'secret' => $secret];
+    }
+
+    /**
+     * Creates a Sylius cart (Order in state=cart) for the buyer's customer/channel,
+     * with one item pointing to an existing fixture product variant.
+     *
+     * @param int $unitPriceCentimes unit price in centimes (e.g. 10000 = 100.00 EUR)
+     */
+    public function createCartWithItem(
+        BuyerInterface $buyer,
+        int $unitPriceCentimes = 10000,
+        int $quantity = 1,
+    ): OrderInterface {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $buyer->getChannel();
+        $customer = $buyer->getCustomer();
+
+        // Use an existing product variant from fixtures
+        $variant = $this->getDefaultProductVariant();
+
+        $order = $this->buildCart($channel, $customer, $em);
+
+        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $quantity, $order, $em);
+
+        // Add one OrderItemUnit per quantity (required by Sylius order item quantity tracking)
+        for ($i = 0; $i < $quantity; ++$i) {
+            $this->buildOrderItemUnit($item, $em);
+        }
+
+        $em->flush();
+
+        return $order;
+    }
+
+    /**
+     * Creates a cart with a tax-inclusive item (120.00 TTC, 20% tax → 100.00 HT).
+     * unitPrice = 12000 centimes, taxAdjustment per unit = 2000 centimes.
+     */
+    public function createCartWithTaxItem(
+        BuyerInterface $buyer,
+    ): OrderInterface {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $buyer->getChannel();
+        $customer = $buyer->getCustomer();
+
+        $variant = $this->getDefaultProductVariant();
+
+        $order = $this->buildCart($channel, $customer, $em);
+
+        // 120.00 EUR TTC (= 12000 centimes)
+        $item = $this->buildOrderItem($variant, 12000, 1, $order, $em);
+
+        // One unit with a tax adjustment of 2000 centimes (20.00 EUR tax)
+        $unit = $this->buildOrderItemUnit($item, $em);
+        $adjustment = $this->buildTaxAdjustment(2000, $em);
+        $unit->addAdjustment($adjustment);
+        $em->persist($unit);
+
+        $em->flush();
+
+        return $order;
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private function buildCart(
+        ?ChannelInterface $channel,
+        ?CustomerInterface $customer,
+        EntityManagerInterface $em,
+    ): OrderInterface {
+        // Re-fetch via repository to ensure entities are in the current EM identity map.
+        // After HTTP requests through KernelBrowser, previously-loaded entities may be detached.
+        $managedChannel = null;
+        if ($channel !== null) {
+            $found = $this->container->get('sylius.repository.channel')->find($channel->getId());
+            $managedChannel = $found instanceof ChannelInterface ? $found : null;
+        }
+
+        $managedCustomer = null;
+        if ($customer !== null) {
+            $found = $this->container->get('sylius.repository.customer')->find($customer->getId());
+            $managedCustomer = $found instanceof CustomerInterface ? $found : null;
+        }
+
+        /** @var OrderInterface $order */
+        $order = $this->container->get('sylius.factory.order')->createNew();
+        $order->setChannel($managedChannel);
+        $order->setCustomer($managedCustomer);
+        $order->setState('cart');
+        $order->setCurrencyCode($channel?->getBaseCurrency()?->getCode() ?? 'EUR');
+        $order->setLocaleCode($channel?->getDefaultLocale()?->getCode() ?? 'en_US');
+        // Required Sylius checkout state machine fields
+        if (method_exists($order, 'setCheckoutState')) {
+            $order->setCheckoutState('cart');
+        }
+        $em->persist($order);
+
+        return $order;
+    }
+
+    private function buildOrderItem(
+        ProductVariantInterface $variant,
+        int $unitPriceCentimes,
+        int $quantity,
+        OrderInterface $order,
+        EntityManagerInterface $em,
+    ): \Sylius\Component\Core\Model\OrderItemInterface {
+        /** @var \Sylius\Component\Core\Model\OrderItemInterface $item */
+        $item = $this->container->get('sylius.factory.order_item')->createNew();
+        $item->setVariant($variant);
+        $item->setProductName($variant->getName() ?? $variant->getCode() ?? 'Test Product');
+        $item->setUnitPrice($unitPriceCentimes);
+        // fullDiscountedUnitPrice = unitPrice for fresh items (no promotions)
+        if (method_exists($item, 'setFullDiscountedUnitPrice')) {
+            $item->setFullDiscountedUnitPrice($unitPriceCentimes);
+        }
+        $order->addItem($item);
+        $em->persist($item);
+
+        return $item;
+    }
+
+    private function buildOrderItemUnit(
+        \Sylius\Component\Core\Model\OrderItemInterface $item,
+        EntityManagerInterface $em,
+    ): \Sylius\Component\Core\Model\OrderItemUnitInterface {
+        /** @var \Sylius\Component\Core\Model\OrderItemUnitInterface $unit */
+        $unit = $this->container->get('sylius.factory.order_item_unit')->createForItem($item);
+        $em->persist($unit);
+
+        return $unit;
+    }
+
+    private function buildTaxAdjustment(int $amountCentimes, EntityManagerInterface $em): AdjustmentInterface
+    {
+        /** @var AdjustmentInterface $adjustment */
+        $adjustment = $this->container->get('sylius.factory.adjustment')->createNew();
+        $adjustment->setType(\Sylius\Component\Core\Model\AdjustmentInterface::TAX_ADJUSTMENT);
+        $adjustment->setAmount($amountCentimes);
+        $adjustment->setNeutral(false);
+        $adjustment->setLabel('VAT 20%');
+        $em->persist($adjustment);
+
+        return $adjustment;
+    }
+
+    private function getDefaultChannel(): ?ChannelInterface
+    {
         $repo = $this->container->get('sylius.repository.channel');
-        return $repo->findOneBy([]);
+        $channel = $repo->findOneBy([]);
+
+        return $channel instanceof ChannelInterface ? $channel : null;
+    }
+
+    private function getDefaultShopCustomer(): ?CustomerInterface
+    {
+        $repo = $this->container->get('sylius.repository.customer');
+        $customer = $repo->findOneBy(['email' => 'shop@example.com']);
+
+        return $customer instanceof CustomerInterface ? $customer : null;
+    }
+
+    private function getDefaultProductVariant(): ProductVariantInterface
+    {
+        $repo = $this->container->get('sylius.repository.product_variant');
+        $variants = $repo->findBy([], ['id' => 'ASC'], 1);
+        if (empty($variants)) {
+            throw new \RuntimeException('No product variants found in fixtures. Run sylius:fixtures:load first.');
+        }
+        $variant = $variants[0];
+        if (!$variant instanceof ProductVariantInterface) {
+            throw new \RuntimeException('First product variant is not a ProductVariantInterface');
+        }
+
+        return $variant;
     }
 }
