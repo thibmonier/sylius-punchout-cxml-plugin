@@ -7,7 +7,6 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\LimiterInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
@@ -15,6 +14,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Log\LoggedExchange;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciContext;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\AuthenticationThrottle;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\RateLimitKeys;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
@@ -27,7 +27,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\SessionStarter;
  * USERNAME, PASSWORD and HOOK_URL. The buyer must use the OCI protocol; the username is compared in
  * constant time and the password verified like a cXML secret (Argon2id, dummy check when the buyer is
  * unknown); failures are limited per buyer code and address and per buyer code. The session then
- * starts at once, without a start token. OCI functions (FUNCTION=DETAIL, VALIDATE…) come with v1.1.
+ * starts at once, without a start token. POST only unless `oci_allow_get` is enabled. OCI functions (FUNCTION=DETAIL, VALIDATE…) come with v1.1.
  */
 final readonly class OciEntryAction
 {
@@ -41,13 +41,18 @@ final readonly class OciEntryAction
         private SessionStarter $sessionStarter,
         private MessageLogger $messageLogger,
         private RateLimiterFactory $entryLimiter,
-        private RateLimiterFactory $authenticationFailureLimiter,
-        private RateLimiterFactory $identityFailureLimiter,
+        private AuthenticationThrottle $throttle,
+        private bool $allowGet = false,
     ) {
     }
 
     public function __invoke(Request $request, string $buyerCode): Response
     {
+        // A GET puts the password in every access log on the way and in the browser history (opt-in).
+        if (!$this->allowGet && !$request->isMethod('POST')) {
+            return new Response('Method Not Allowed', Response::HTTP_METHOD_NOT_ALLOWED, ['Allow' => 'POST', 'Cache-Control' => 'no-store']);
+        }
+
         /** @var array<array-key, mixed> $parameters */
         $parameters = $request->request->all() + $request->query->all();
         $exchange = new LoggedExchange();
@@ -55,6 +60,7 @@ final readonly class OciEntryAction
         $exchange->identity = 'oci|' . $buyerCode;
         $response = $this->handle($request, $buyerCode, $parameters, $exchange);
 
+        // Rate-limited requests are not stored (the throttle writes a warning to the application log).
         if ($response->getStatusCode() !== Response::HTTP_TOO_MANY_REQUESTS) {
             $this->messageLogger->log(
                 MessageLog::DIRECTION_IN,
@@ -85,11 +91,8 @@ final readonly class OciEntryAction
             return $this->plain('Bad Request', Response::HTTP_BAD_REQUEST);
         }
 
-        $failures = [
-            $this->authenticationFailureLimiter->create($exchange->identity . '|' . RateLimitKeys::ip($request->getClientIp())),
-            $this->identityFailureLimiter->create((string) $exchange->identity),
-        ];
-        if ($failures[0]->consume(0)->getRemainingTokens() === 0 || $failures[1]->consume(0)->getRemainingTokens() === 0) {
+        $identity = (string) $exchange->identity;
+        if ($this->throttle->isBlocked($identity, $request->getClientIp())) {
             return $this->plain('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
         }
 
@@ -99,9 +102,9 @@ final readonly class OciEntryAction
         // Always one Argon2id verification, whether the buyer and the username are right or not.
         $passwordValid = $this->credentialVerifier->verify($this->string($parameters, 'PASSWORD'), $usernameValid ? $buyer : null);
         if (!$buyer instanceof Buyer || !$usernameValid || !$passwordValid) {
-            array_map(static fn (LimiterInterface $limiter): \Symfony\Component\RateLimiter\RateLimit => $limiter->consume(), $failures);
-
-            return $this->plain('Forbidden', Response::HTTP_FORBIDDEN);
+            return $this->throttle->fail($identity, $request->getClientIp())
+                ? $this->plain('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS)
+                : $this->plain('Forbidden', Response::HTTP_FORBIDDEN);
         }
         $exchange->buyer = $buyer;
 
@@ -130,7 +133,8 @@ final readonly class OciEntryAction
     }
 
     /**
-     * The parameters as logged: one "name=value" line each, the password replaced by "***".
+     * The parameters as logged: one "name=value" line each, any password-like parameter replaced by
+     * "***", the query of HOOK_URL (SAP context) left out.
      *
      * @param array<array-key, mixed> $parameters
      */
@@ -138,7 +142,13 @@ final readonly class OciEntryAction
     {
         $lines = [];
         foreach ($parameters as $name => $value) {
-            $lines[] = $name . '=' . ($name === 'PASSWORD' ? '***' : (is_string($value) ? $value : '[array]'));
+            $value = is_string($value) ? $value : '[array]';
+            if (1 === preg_match('/pass|pwd|secret|token/i', (string) $name)) {
+                $value = '***';
+            } elseif ($name === 'HOOK_URL') {
+                $value = strtok($value, '?#') ?: '';
+            }
+            $lines[] = $name . '=' . $value;
         }
 
         return implode("\n", $lines);

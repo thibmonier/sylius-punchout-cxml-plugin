@@ -8,7 +8,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
+use Tmonier\SyliusCompanyAccountsPlugin\Entity\Company;
+use Tmonier\SyliusCompanyAccountsPlugin\Entity\CompanyMember;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\OciEntryAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
@@ -56,6 +59,50 @@ final class OciTest extends WebTestCase
         $form = $this->client->getCrawler()->filter('form');
         self::assertSame(self::HOOK, $form->attr('action'));
         self::assertSame('_top', $form->attr('target'));
+    }
+
+    public function testAGetEntryIsRefusedByDefault(): void
+    {
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = (new TestCatalog(self::getContainer()))->createOciBuyer();
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK], 'GET');
+
+        self::assertResponseStatusCodeSame(405, 'The password would end up in access logs');
+    }
+
+    public function testASpentIdentityBudgetStillLetsTheRightCredentialsIn(): void
+    {
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = (new TestCatalog(self::getContainer()))->createOciBuyer();
+        $limiter = self::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
+        self::assertInstanceOf(RateLimiterFactory::class, $limiter);
+        $limiter->create('oci|' . $buyer->getCode())->consume(50);
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => 'wrong-' . bin2hex(random_bytes(8)), 'HOOK_URL' => self::HOOK]);
+        self::assertResponseStatusCodeSame(429);
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK]);
+        self::assertResponseRedirects('/en_US/', 303, 'Failures sent by others do not lock the buyer out');
+    }
+
+    public function testACustomerWhoLeftTheCompanyOfTheBuyerOpensNoSession(): void
+    {
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = (new TestCatalog(self::getContainer()))->createOciBuyer();
+        $company = new Company();
+        $company->setCode('punchout-left-' . bin2hex(random_bytes(3)));
+        $company->setName('BigCorp');
+        $company->setEnabled(true);
+        $member = new CompanyMember();
+        $member->setCompany($company);
+        $member->setCustomer($buyer->getCustomer());
+        $member->setEnabled(false);
+        $buyer->setCompanyId($company->getCode());
+        $em = $this->entityManager();
+        $em->persist($company);
+        $em->persist($member);
+        $em->flush();
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK]);
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testTheEntryAcceptsAPostAndTheReturnTargetOfSap(): void
@@ -137,7 +184,7 @@ final class OciTest extends WebTestCase
     }
 
     /** @param array<string, string> $parameters */
-    private function enter(Buyer $buyer, array $parameters, string $method = 'GET'): void
+    private function enter(Buyer $buyer, array $parameters, string $method = 'POST'): void
     {
         $this->client->request($method, '/punchout/oci/' . $buyer->getCode(), $parameters, [], ['REMOTE_ADDR' => '203.0.113.10']);
     }

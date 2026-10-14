@@ -6,7 +6,6 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\LimiterInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
@@ -23,6 +22,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\LoggedExchange;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\AuthenticationThrottle;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\RateLimitKeys;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
@@ -53,8 +53,7 @@ final readonly class CxmlEndpointAction
         private UrlGeneratorInterface $urlGenerator,
         private ReplayGuard $replayGuard,
         private RateLimiterFactory $setupLimiter,
-        private RateLimiterFactory $authenticationFailureLimiter,
-        private RateLimiterFactory $identityFailureLimiter,
+        private AuthenticationThrottle $throttle,
         private MessageLogger $messageLogger,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
@@ -134,35 +133,22 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         }
 
-        // Brute force on one identity is limited whatever the client address (several addresses or
-        // a shared proxy): no Argon2id work once the failure budget of the identity is spent.
-        // Two budgets: per identity and address (one address cannot lock a buyer out), and per identity
-        // from all addresses (distributed brute force).
-        $failures = [
-            $this->authenticationFailureLimiter->create($exchange->identity . '|' . RateLimitKeys::ip($request->getClientIp())),
-            $this->identityFailureLimiter->create($exchange->identity),
-        ];
-        if ($failures[0]->consume(0)->getRemainingTokens() === 0 || $failures[1]->consume(0)->getRemainingTokens() === 0) {
-            return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60', 'Cache-Control' => 'no-store']);
+        // Failures of one identity are limited per address and per identity (AuthenticationThrottle).
+        if ($this->throttle->isBlocked($exchange->identity, $request->getClientIp())) {
+            return $this->tooManyRequests();
         }
 
-        // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
-        if ($header->sharedSecret === '') {
-            $this->credentialVerifier->verify('_empty_secret_dummy_', null);
-            array_map(static fn (LimiterInterface $limiter): \Symfony\Component\RateLimiter\RateLimit => $limiter->consume(), $failures);
-
-            return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
-        }
-
-        // Resolve buyer by identities + verify secret (constant-time even when buyer is unknown)
+        // Resolve buyer by identities + verify secret (constant-time even when buyer is unknown or the
+        // secret empty). An OCI buyer never authenticates here, even with identities.
         $buyer = $this->buyerResolver->resolveByIdentities($header->fromDomain, $header->fromIdentity, $header->senderDomain, $header->senderIdentity);
-        $secretValid = $this->credentialVerifier->verify($header->sharedSecret, $buyer);
+        $buyer = $buyer instanceof Buyer && $buyer->getProtocol() === 'cxml' ? $buyer : null;
+        $secretValid = $this->credentialVerifier->verify($header->sharedSecret !== '' ? $header->sharedSecret : '_empty_secret_dummy_', $header->sharedSecret !== '' ? $buyer : null);
 
         // Unknown buyer or wrong secret → 401 (same response to prevent identity enumeration)
         if (!$buyer instanceof Buyer || !$secretValid) {
-            array_map(static fn (LimiterInterface $limiter): \Symfony\Component\RateLimiter\RateLimit => $limiter->consume(), $failures);
-
-            return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
+            return $this->throttle->fail($exchange->identity, $request->getClientIp())
+                ? $this->tooManyRequests()
+                : $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }
 
         $exchange->buyer = $buyer;
@@ -223,6 +209,11 @@ final readonly class CxmlEndpointAction
         $xml = $this->responseWriter->write($startUrl, $hostname);
 
         return $this->xmlResponse($xml, Response::HTTP_OK);
+    }
+
+    private function tooManyRequests(): Response
+    {
+        return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60', 'Cache-Control' => 'no-store']);
     }
 
     private function errorResponse(int $code, string $text): Response

@@ -50,6 +50,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Fixture\PunchoutDemoFixture;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\BodyMasker;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Menu\AdminMenuListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\AuthenticationThrottle;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\PunchoutSessionVoter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
@@ -104,6 +105,9 @@ return static function (ContainerConfigurator $container): void {
     $services->set(ReturnUrlValidator::class)
         ->arg('$insecureHosts', '%tmonier_punchout.insecure_return_url_hosts%');
     $services->alias('tmonier_punchout.security.return_url_validator', ReturnUrlValidator::class);
+    $services->set(AuthenticationThrottle::class)
+        ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
+        ->arg('$identityFailureLimiter', service('limiter.tmonier_punchout_identity_failure'));
 
     // Journal (US-024)
     $services->set(BodyMasker::class)
@@ -119,7 +123,7 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$sessionLifetime', '%tmonier_punchout.session_lifetime%');
     $services->set(StartTokenIssuer::class)->public();
     $services->set(StartTokenConsumer::class);
-    $services->set(ShopperAuthenticator::class);
+    $services->set(ShopperAuthenticator::class)->arg('$companyDirectory', service(CompanyDirectoryInterface::class)->nullOnInvalid());
     $services->set(SessionStarter::class);
 
     $services->alias('tmonier_punchout.session.factory', SessionFactory::class);
@@ -157,8 +161,6 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public()
         ->arg('$setupLimiter', service('limiter.tmonier_punchout_setup'))
-        ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
-        ->arg('$identityFailureLimiter', service('limiter.tmonier_punchout_identity_failure'))
         ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
         ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
 
@@ -188,8 +190,7 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public()
         ->arg('$entryLimiter', service('limiter.tmonier_punchout_oci_entry'))
-        ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
-        ->arg('$identityFailureLimiter', service('limiter.tmonier_punchout_identity_failure'));
+        ->arg('$allowGet', '%tmonier_punchout.oci_allow_get%');
     $services->alias('tmonier_punchout.controller.oci_entry', OciEntryAction::class)->public();
 
     // Admin: buyer form, first secret on creation, secret regeneration

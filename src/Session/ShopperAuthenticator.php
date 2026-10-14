@@ -8,6 +8,7 @@ use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Tmonier\SyliusPunchoutCxmlPlugin\Company\CompanyDirectoryInterface;
 
 /**
  * Authenticates the customer linked to the PunchOut buyer into the shop.
@@ -27,6 +28,7 @@ final readonly class ShopperAuthenticator
     public function __construct(
         private CurrentPunchoutSession $currentSession,
         private \Symfony\Bundle\SecurityBundle\Security $security,
+        private ?CompanyDirectoryInterface $companyDirectory = null,
     ) {
     }
 
@@ -72,6 +74,12 @@ final readonly class ShopperAuthenticator
             !$shopUser->isVerified()
         ) {
             throw new \RuntimeException('Shop user account is not verified');
+        }
+
+        // US-006: the customer of a buyer attached to a company must still be an active member of it.
+        $company = $buyer->getCompanyId();
+        if ($company !== null && $company !== '' && $this->companyDirectory instanceof CompanyDirectoryInterface && !$this->companyDirectory->isActiveMember($customer, $company)) {
+            throw new \RuntimeException('Customer is no longer an active member of the buyer company');
         }
 
         // R7 fix: regenerate the session ID BEFORE login to prevent session fixation.

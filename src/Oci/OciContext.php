@@ -38,12 +38,14 @@ final class OciContext
                 $context[$name] = $value;
             }
         }
+        $tildeFields = 0;
         foreach ($parameters as $name => $value) {
-            if (count($context) >= self::MAX_TILDE_FIELDS + 2) {
+            if ($tildeFields >= self::MAX_TILDE_FIELDS) {
                 break;
             }
             if (is_string($name) && is_string($value) && 1 === preg_match(self::TILDE_NAME, $name) && mb_strlen($value) <= 255) {
                 $context[$name] = $value;
+                ++$tildeFields;
             }
         }
         // ~TARGET decides the frame when there is no returntarget: a frame name only.

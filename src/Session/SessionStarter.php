@@ -77,6 +77,7 @@ final readonly class SessionStarter
             default => $this->urlGenerator->generate('sylius_shop_homepage', ['_locale' => $locale]),
         }, Response::HTTP_SEE_OTHER);
         $response->headers->set('Referrer-Policy', 'no-referrer');
+        $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
     }

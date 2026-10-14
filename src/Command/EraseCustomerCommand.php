@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Command;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -17,8 +18,10 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Gdpr\PersonalDataEraser;
 #[AsCommand(name: 'tmonier:punchout:erase', description: 'Erases the PunchOut personal data of an e-mail address (sessions and journal), keeping the statistics')]
 final class EraseCustomerCommand extends Command
 {
-    public function __construct(private readonly PersonalDataEraser $eraser)
-    {
+    public function __construct(
+        private readonly PersonalDataEraser $eraser,
+        private readonly LoggerInterface $logger,
+    ) {
         parent::__construct();
     }
 
@@ -41,6 +44,11 @@ final class EraseCustomerCommand extends Command
             $io->error($exception->getMessage());
 
             return Command::INVALID;
+        }
+
+        if (!$dryRun) {
+            // Audit trail of the erasure (the address itself is not repeated in the logs).
+            $this->logger->notice('PunchOut personal data erased', $counts + ['email_sha256' => hash('sha256', mb_strtolower(trim(is_string($email) ? $email : '')))]);
         }
 
         $io->success(sprintf(

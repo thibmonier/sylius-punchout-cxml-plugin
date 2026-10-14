@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console commands `tmonier:punchout:purge` (retention), `tmonier:punchout:erase` (GDPR erasure, statistics kept), both with `--dry-run` (US-025), and `tmonier:punchout:doctor` (session cookie unfit for iframes, incomplete buyers, development settings left on) (US-028)
 - Optional link of a buyer to a company of tmonier/sylius-company-accounts-plugin: the customer must be an active member of it (US-006)
 
+### Security
+
+- OCI entry by POST only (`oci_allow_get` to accept GET); password-like parameters and the query of HOOK_URL are left out of the log
+- A spent failure budget of an identity (all addresses) no longer blocks the right credentials: only further failures get 429 (cXML and OCI); blocked attempts are logged as warnings
+- An OCI buyer cannot authenticate on the cXML endpoint
+- The customer of a buyer attached to a company must still be an active member of it when a session opens
+- Session start redirection is not cached; erasures leave an audit notice (hash of the address)
+
 ### Changed
 
 - The start URL redirects with HTTP 303 and `Referrer-Policy: no-referrer`

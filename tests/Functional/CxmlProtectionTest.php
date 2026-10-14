@@ -6,6 +6,7 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 
@@ -82,6 +83,29 @@ final class CxmlProtectionTest extends WebTestCase
 
         self::assertNotContains('429', array_slice($statuses, 0, 50));
         self::assertSame('429', $statuses[50], 'A distributed brute force on one identity is limited');
+    }
+
+    public function testASpentIdentityBudgetStillLetsTheRightSecretIn(): void
+    {
+        $fromIdentity = 'spent-' . bin2hex(random_bytes(4)) . '@example.com';
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: $fromIdentity);
+        $limiter = self::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
+        self::assertInstanceOf(RateLimiterFactory::class, $limiter);
+        $limiter->create('aribanetworkuserid|' . $fromIdentity)->consume(50);
+
+        self::assertSame('429', $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, 'wrong-secret', 'C'))));
+        self::assertSame('200', $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, $secret, 'C'))), 'Failures sent by others do not lock the buyer out');
+    }
+
+    public function testAnOciBuyerCannotAuthenticateWithCxml(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: 'oci-cxml-' . bin2hex(random_bytes(4)) . '@example.com');
+        $buyer->setProtocol('oci');
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(\Doctrine\ORM\EntityManagerInterface::class, $em);
+        $em->flush();
+
+        self::assertSame('401', $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, $secret, 'C'))));
     }
 
     private function cxmlStatus(string $body): string

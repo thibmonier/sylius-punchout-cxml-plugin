@@ -21,12 +21,12 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{supplier_identity: array{domain: string, identity: string}, start_token_ttl: int, session_lifetime: int, replay_window: int, max_request_bytes: int, max_items_out: int, retention_days: int, log_bodies: bool, keep_transferred_carts: bool, rate_limits: array<string, mixed>, allowed_extrinsics: list<string>, insecure_return_url_hosts: list<string>, driver: string, resources: array<string, mixed>} $config */
+        /** @var array{supplier_identity: array{domain: string, identity: string}, start_token_ttl: int, session_lifetime: int, replay_window: int, max_request_bytes: int, max_items_out: int, retention_days: int, log_bodies: bool, oci_allow_get: bool, keep_transferred_carts: bool, rate_limits: array<string, mixed>, allowed_extrinsics: list<string>, insecure_return_url_hosts: list<string>, driver: string, resources: array<string, mixed>} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         $this->registerResources('tmonier_punchout', $config['driver'], $config['resources'], $container);
 
-        foreach (['start_token_ttl', 'session_lifetime', 'replay_window', 'max_request_bytes', 'max_items_out', 'retention_days', 'log_bodies', 'keep_transferred_carts', 'allowed_extrinsics', 'insecure_return_url_hosts'] as $key) {
+        foreach (['start_token_ttl', 'session_lifetime', 'replay_window', 'max_request_bytes', 'max_items_out', 'retention_days', 'log_bodies', 'oci_allow_get', 'keep_transferred_carts', 'allowed_extrinsics', 'insecure_return_url_hosts'] as $key) {
             $container->setParameter('tmonier_punchout.' . $key, $config[$key]);
         }
 

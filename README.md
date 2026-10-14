@@ -33,11 +33,12 @@ setup time and again before the cart is sent. An open PunchOut session expires a
 
 ## SAP OCI
 
-A buyer with the **OCI** protocol enters with `GET` or `POST https://<shop>/punchout/oci/<buyer code>`
-and the parameters `USERNAME`, `PASSWORD` and `HOOK_URL` (prefer `POST`: a `GET` puts the password in
-the access logs of every proxy on the way). The username is set on the buyer, the password is the
+A buyer with the **OCI** protocol enters with `POST https://<shop>/punchout/oci/<buyer code>` and the
+parameters `USERNAME`, `PASSWORD` and `HOOK_URL` (set the HTTP method of the catalog call to POST in
+SAP). A `GET` entry is refused (405) unless `oci_allow_get: true`: it would put the password in the
+access logs of every proxy on the way and in the browser history. The username is set on the buyer, the password is the
 buyer secret (same Argon2id hash, rotation and imposed value as a cXML secret); failures are limited
-like cXML authentications. `HOOK_URL` must match the buyer's return domains. The shopper is logged in
+like cXML authentications. An OCI buyer never authenticates on the cXML endpoint. `HOOK_URL` must match the buyer's return domains. The shopper is logged in
 at once, no start URL.
 
 *Transfer* posts the OCI 5.0 fields to `HOOK_URL`: `NEW_ITEM-DESCRIPTION` (40 characters),
@@ -105,9 +106,10 @@ tmonier_sylius_punchout_cxml:
     rate_limits:
         setup: { limit: 30, interval: '1 minute' }                                 # per client address
         authentication_failures: { limit: 10, interval: '1 minute' }               # per identity and address
-        authentication_failures_per_identity: { limit: 50, interval: '1 minute' }  # per identity, all addresses
+        authentication_failures_per_identity: { limit: 50, interval: '1 minute' }  # per identity, all addresses: further failures get 429, right credentials still pass
         oci_entry: { limit: 30, interval: '1 minute' }                             # OCI entries per client address
     keep_transferred_carts: false
+    oci_allow_get: false             # accept the OCI entry by GET (not recommended)
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
 
