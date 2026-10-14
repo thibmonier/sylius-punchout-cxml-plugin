@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
@@ -165,5 +166,71 @@ final class CxmlEndpointTest extends WebTestCase
         $response = $client->getResponse();
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('<Status code="406"', (string) $response->getContent());
+    }
+
+    /**
+     * US-007 security: a buyer with enabled=false must receive a generic 401
+     * indistinguishable from an unknown-buyer response (no information leakage).
+     */
+    public function testDisabledBuyerReturns401(): void
+    {
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
+        ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
+
+        // Disable the buyer after creation
+        $buyer->setEnabled(false);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->flush();
+
+        $ids = $this->extractIdentities($buyer);
+        $xml = $this->buildSetupRequest(
+            $ids['fromDomain'],
+            $ids['fromIdentity'],
+            $ids['senderDomain'],
+            $ids['senderIdentity'],
+            $secret,
+        );
+
+        $client->request('POST', '/punchout/cxml', [], [], [
+            'CONTENT_TYPE' => 'text/xml; charset=UTF-8',
+        ], $xml);
+
+        $response = $client->getResponse();
+        self::assertSame(200, $response->getStatusCode()); // cXML always returns 200 HTTP
+        // Must return 401, same as wrong secret — no information leakage
+        self::assertStringContainsString('<Status code="401"', (string) $response->getContent());
+        // Must not leak the reason (disabled vs wrong secret)
+        self::assertStringContainsString('Unauthorized', (string) $response->getContent());
+    }
+
+    /**
+     * US-007 security: no Set-Cookie header must ever appear on the cXML endpoint
+     * (cXML systems are not browser sessions).
+     */
+    public function testEndpointNeverSetsSessionCookie(): void
+    {
+        $client = $this->client;
+        $catalog = new TestCatalog(static::getContainer());
+        ['buyer' => $buyer, 'secret' => $secret] = $catalog->createBuyer();
+
+        $ids = $this->extractIdentities($buyer);
+        $xml = $this->buildSetupRequest(
+            $ids['fromDomain'],
+            $ids['fromIdentity'],
+            $ids['senderDomain'],
+            $ids['senderIdentity'],
+            $secret,
+        );
+
+        $client->request('POST', '/punchout/cxml', [], [], [
+            'CONTENT_TYPE' => 'text/xml; charset=UTF-8',
+        ], $xml);
+
+        self::assertFalse(
+            $client->getResponse()->headers->has('Set-Cookie'),
+            'The cXML endpoint must never set a cookie',
+        );
     }
 }
