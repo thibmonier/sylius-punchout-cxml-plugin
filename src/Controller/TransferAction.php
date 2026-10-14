@@ -56,10 +56,10 @@ final readonly class TransferAction
         if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
             return new Response('No cart found', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        // Determine if channel is tax-inclusive
-        $cart->getChannel();
-        $taxIncluded = $this->isTaxIncluded();
+        // Determine if channel is tax-inclusive (read from buyer configuration, ADR-005)
+        $taxIncluded = $this->isTaxIncluded($session);
         $lines = $this->transferLineExtractor->extract($cart, $taxIncluded);
+
         $total = $this->netPriceCalculator->computeTotal($lines);
         $currency = $cart->getCurrencyCode() ?? 'EUR';
         $payloadId = $this->payloadIdGenerator->generate();
@@ -120,9 +120,22 @@ final readonly class TransferAction
         return $this->orderRepository->findLatestCartByChannelAndCustomer($channel, $customer);
     }
 
-    private function isTaxIncluded(): bool
+    /**
+     * Resolves whether the channel displays tax-inclusive prices (ADR-005).
+     *
+     * Priority: buyer.taxIncluded override → false (channel strategy deferred to sprint 2).
+     */
+    private function isTaxIncluded(PunchoutSession $session): bool
     {
-        // placeholder — actual tax strategy read in sprint 2
+        $buyer = $session->getBuyer();
+        if ($buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
+            $override = $buyer->getTaxIncluded();
+            if ($override !== null) {
+                return $override;
+            }
+        }
+
+        // Channel-level strategy (e.g. tax_calculation_strategy) deferred to sprint 2
         return false;
     }
 
