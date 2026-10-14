@@ -6,11 +6,11 @@
 PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-> **Status: in development, not released.** Available today: cXML PunchOut `create`, `edit` and
-> `inspect`, `ProfileRequest`, SAP OCI 5.0 entry and return, cart transfer and cancel, UNSPSC codes
-> and units, optional tax and shipping, exchange log — with replay protection, rate limiting and
-> iframe support — buyer admin, buyer simulator, retention purge, GDPR erasure and diagnostic
-> command. Specification and roadmap: [`project-management/`](project-management/).
+Version 1.0: cXML PunchOut `create`, `edit` and `inspect`, `ProfileRequest`, SAP OCI 5.0 entry and
+return, cart transfer and cancel, UNSPSC codes and units, optional tax and shipping, exchange log —
+with replay protection, rate limiting and iframe support — buyer admin, buyer simulator, retention
+purge, GDPR erasure and diagnostic command. Coming in 1.1: cXML `OrderRequest` and OCI functions.
+Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
