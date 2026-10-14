@@ -18,6 +18,8 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\MessageOptions;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
@@ -52,6 +54,7 @@ final readonly class TransferAction
         private OrderProcessorInterface $orderProcessor,
         private CartStorageInterface $cartStorage,
         private Security $security,
+        private MessageLogger $messageLogger,
         private bool $keepTransferredCarts = false,
         private string $supplierDomain = 'NetworkId',
         private string $supplierIdentity = 'supplier',
@@ -91,12 +94,13 @@ final readonly class TransferAction
             $lines = $this->transferLineExtractor->extract($cart, $session->getBuyer());
         }
 
+        $payloadId = $this->payloadIdGenerator->generate();
         $xml = $this->orderMessageWriter->write(
             $lines,
             $this->netPriceCalculator->computeTotal($lines),
             $cart?->getCurrencyCode() ?? $session->getBuyer()?->getChannel()?->getBaseCurrency()?->getCode() ?? 'EUR',
             $session->getBuyerCookie(),
-            $this->payloadIdGenerator->generate(),
+            $payloadId,
             $session->getOperation(),
             $this->supplierDomain,
             $this->supplierIdentity,
@@ -105,6 +109,7 @@ final readonly class TransferAction
             $this->messageOptions($session, $cancel ? null : $cart),
         );
 
+        $this->messageLogger->log(MessageLog::DIRECTION_OUT, 'PunchOutOrderMessage', $payloadId, 200, $xml, $session->getBuyer(), $session);
         $this->close($session, $cart, $cancel ? PunchoutSession::STATUS_CANCELLED : PunchoutSession::STATUS_TRANSFERRED);
 
         return $this->postToReturnUrl($returnUrl, base64_encode($xml));

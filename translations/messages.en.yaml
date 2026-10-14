@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'These items are no longer available and were left out: %parts%'
         menu:
             buyers: 'PunchOut Buyers'
+            logs: 'PunchOut log'
         secret:
             title: 'New shared secret'
             help: 'Copy it now and give it to the buyer: it will not be shown again (only its hash is stored).'
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Unknown item'
             empty: 'No item.'
             back: 'Back to my procurement system'
+        log:
+            buyer: Buyer
+            direction: Direction
+            type: Type
+            payload_id: payloadID
+            status: Status
+            no_body: 'The body is not kept (log_bodies disabled); only its SHA-256 is.'
+        message_logs: 'PunchOut log'
     form:
         buyer:
             name: Name

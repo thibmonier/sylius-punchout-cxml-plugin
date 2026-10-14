@@ -47,3 +47,9 @@ sylius_twig_hooks:
             tmonier_punchout_classification:
                 template: '@TmonierSyliusPunchoutCxmlPlugin/admin/classification/fields.html.twig'
                 priority: -150
+
+        # US-024: detail of a logged exchange (masked body).
+        'tmonier_punchout_admin.message_log.show.content':
+            tmonier_punchout_details:
+                template: '@TmonierSyliusPunchoutCxmlPlugin/admin/message_log/show.html.twig'
+                priority: -100

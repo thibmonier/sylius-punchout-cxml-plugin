@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'Ces articles ne sont plus disponibles et ont été retirés : %parts%'
         menu:
             buyers: 'Acheteurs PunchOut'
+            logs: 'Journal PunchOut'
         secret:
             title: 'Nouveau secret partagé'
             help: "Copiez-le maintenant et transmettez-le à l'acheteur : il ne sera plus affiché (seule son empreinte est enregistrée)."
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Article inconnu'
             empty: 'Aucun article.'
             back: "Revenir à mon outil d'achat"
+        log:
+            buyer: Acheteur
+            direction: Sens
+            type: Type
+            payload_id: payloadID
+            status: Statut
+            no_body: "Le corps n'est pas conservé (log_bodies désactivé) ; seule son empreinte SHA-256 l'est."
+        message_logs: 'Journal PunchOut'
     form:
         buyer:
             name: Nom

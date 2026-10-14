@@ -38,6 +38,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Fixture\PunchoutDemoFixture;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\BodyMasker;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Menu\AdminMenuListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\PunchoutSessionVoter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
@@ -91,6 +93,11 @@ return static function (ContainerConfigurator $container): void {
     $services->set(ReturnUrlValidator::class)
         ->arg('$insecureHosts', '%tmonier_punchout.insecure_return_url_hosts%');
     $services->alias('tmonier_punchout.security.return_url_validator', ReturnUrlValidator::class);
+
+    // Journal (US-024)
+    $services->set(BodyMasker::class);
+    $services->set(MessageLogger::class)
+        ->arg('$logBodies', '%tmonier_punchout.log_bodies%');
 
     // Session
     $services->set(SessionFactory::class);

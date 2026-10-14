@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'Estos artículos ya no están disponibles y se han omitido: %parts%'
         menu:
             buyers: 'Compradores PunchOut'
+            logs: 'Registro PunchOut'
         secret:
             title: 'Nuevo secreto compartido'
             help: 'Cópielo ahora y entréguelo al comprador: no se volverá a mostrar (solo se guarda su huella).'
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Artículo desconocido'
             empty: 'Ningún artículo.'
             back: 'Volver a mi sistema de compras'
+        log:
+            buyer: Comprador
+            direction: Sentido
+            type: Tipo
+            payload_id: payloadID
+            status: Estado
+            no_body: 'El contenido no se conserva (log_bodies desactivado); solo su SHA-256.'
+        message_logs: 'Registro PunchOut'
     form:
         buyer:
             name: Nombre

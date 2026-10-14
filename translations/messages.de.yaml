@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'Diese Artikel sind nicht mehr verfügbar und wurden entfernt: %parts%'
         menu:
             buyers: PunchOut-Käufer
+            logs: PunchOut-Protokoll
         secret:
             title: 'Neues Shared Secret'
             help: 'Jetzt kopieren und an den Käufer weitergeben: Es wird nicht erneut angezeigt (nur sein Hash wird gespeichert).'
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Unbekannter Artikel'
             empty: 'Kein Artikel.'
             back: 'Zurück zu meinem Beschaffungssystem'
+        log:
+            buyer: Käufer
+            direction: Richtung
+            type: Typ
+            payload_id: payloadID
+            status: Status
+            no_body: 'Der Inhalt wird nicht gespeichert (log_bodies deaktiviert), nur sein SHA-256.'
+        message_logs: PunchOut-Protokoll
     form:
         buyer:
             name: Name

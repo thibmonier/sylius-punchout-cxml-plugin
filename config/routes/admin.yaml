@@ -39,3 +39,17 @@ tmonier_punchout_admin_buyer_revoke_secret:
         credentialId: '\d+'
     defaults:
         _controller: tmonier_punchout.controller.admin_buyer_secret::revoke
+
+tmonier_punchout_admin_message_log:
+    resource: |
+        alias: tmonier_punchout.message_log
+        section: admin
+        templates: "@SyliusAdmin\\shared\\crud"
+        only: ['index', 'show']
+        grid: tmonier_punchout_admin_message_log
+        permission: true
+        path: punchout-logs
+        vars:
+            all:
+                hook_prefix: tmonier_punchout_admin.message_log
+    type: sylius.resource

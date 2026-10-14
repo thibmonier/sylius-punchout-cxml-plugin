@@ -1,0 +1,49 @@
+sylius_grid:
+    grids:
+        tmonier_punchout_admin_message_log:
+            driver:
+                name: doctrine/orm
+                options:
+                    class: "%tmonier_punchout.model.message_log.class%"
+            sorting:
+                createdAt: desc
+            limits: [25, 50, 100]
+            fields:
+                createdAt:
+                    type: datetime
+                    label: sylius.ui.date
+                    sortable: ~
+                    options:
+                        format: 'Y-m-d H:i:s'
+                buyer:
+                    type: twig
+                    label: tmonier_punchout.ui.log.buyer
+                    path: .
+                    options:
+                        template: "@TmonierSyliusPunchoutCxmlPlugin/admin/message_log/grid/field/buyer.html.twig"
+                direction:
+                    type: string
+                    label: tmonier_punchout.ui.log.direction
+                protocol:
+                    type: string
+                    label: tmonier_punchout.form.buyer.protocol.label
+                messageType:
+                    type: string
+                    label: tmonier_punchout.ui.log.type
+                payloadId:
+                    type: string
+                    label: tmonier_punchout.ui.log.payload_id
+                status:
+                    type: string
+                    label: tmonier_punchout.ui.log.status
+                    sortable: ~
+            filters:
+                search:
+                    type: string
+                    label: sylius.ui.search
+                    options:
+                        fields: [payloadId, messageType]
+            actions:
+                item:
+                    show:
+                        type: show

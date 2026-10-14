@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'Deze artikelen zijn niet meer beschikbaar en zijn weggelaten: %parts%'
         menu:
             buyers: PunchOut-kopers
+            logs: PunchOut-logboek
         secret:
             title: 'Nieuw gedeeld geheim'
             help: 'Kopieer het nu en geef het aan de koper: het wordt niet opnieuw getoond (alleen de hash wordt opgeslagen).'
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Onbekend artikel'
             empty: 'Geen artikel.'
             back: 'Terug naar mijn inkoopsysteem'
+        log:
+            buyer: Koper
+            direction: Richting
+            type: Type
+            payload_id: payloadID
+            status: Status
+            no_body: 'De inhoud wordt niet bewaard (log_bodies uitgeschakeld), alleen de SHA-256.'
+        message_logs: PunchOut-logboek
     form:
         buyer:
             name: Naam

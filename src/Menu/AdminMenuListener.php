@@ -26,5 +26,13 @@ final class AdminMenuListener
             ->setLabel('tmonier_punchout.ui.menu.buyers')
             ->setLabelAttribute('icon', 'building')
         ;
+        $catalog
+            ->addChild('tmonier_punchout_logs', [
+                'route' => 'tmonier_punchout_admin_message_log_index',
+            ])
+            ->setAttribute('type', 'link')
+            ->setLabel('tmonier_punchout.ui.menu.logs')
+            ->setLabelAttribute('icon', 'list')
+        ;
     }
 }

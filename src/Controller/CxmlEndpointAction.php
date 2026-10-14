@@ -19,6 +19,9 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\LoggedExchange;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
+use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\RateLimitKeys;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
@@ -50,12 +53,27 @@ final readonly class CxmlEndpointAction
         private ReplayGuard $replayGuard,
         private RateLimiterFactory $setupLimiter,
         private RateLimiterFactory $authenticationFailureLimiter,
+        private MessageLogger $messageLogger,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
     ) {
     }
 
     public function __invoke(Request $request): Response
+    {
+        $exchange = new LoggedExchange();
+        $response = $this->handle($request, $exchange);
+
+        // Rate-limited requests are not stored (a burst must not fill the journal).
+        if ($response->getStatusCode() !== Response::HTTP_TOO_MANY_REQUESTS) {
+            $status = 1 === preg_match('/<Status code="(\d+)"/', (string) $response->getContent(), $matches) ? (int) $matches[1] : $response->getStatusCode();
+            $this->messageLogger->log(MessageLog::DIRECTION_IN, $exchange->messageType, $exchange->payloadId, $status, $request->getContent(), $exchange->buyer);
+        }
+
+        return $response;
+    }
+
+    private function handle(Request $request, LoggedExchange $exchange): Response
     {
         // Never use the session on this endpoint
         $request->setSession(new \Symfony\Component\HttpFoundation\Session\Session(
@@ -98,6 +116,8 @@ final readonly class CxmlEndpointAction
         } catch (CxmlParseException) {
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
         }
+        $exchange->messageType = $requestName;
+        $exchange->payloadId = $header->payloadId;
         if (!in_array($requestName, ['PunchOutSetupRequest', 'ProfileRequest'], true)) {
             return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         }
@@ -127,6 +147,8 @@ final readonly class CxmlEndpointAction
 
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }
+
+        $exchange->buyer = $buyer;
 
         // Disabled buyer → 403 (identity is known but access is forbidden)
         if (!$buyer->isEnabled()) {

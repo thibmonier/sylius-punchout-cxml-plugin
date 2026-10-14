@@ -17,6 +17,8 @@ tmonier_sylius_punchout_cxml:
         identity: '%env(PUNCHOUT_SUPPLIER_IDENTITY)%'
     # The buyer simulator receives the cart on the local dev server (http://localhost:8101).
     insecure_return_url_hosts: [localhost, 127.0.0.1]
+    # Masked bodies are kept in the test application to check the masking (off by default).
+    log_bodies: true
 
 sylius_fixtures:
     suites:

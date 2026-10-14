@@ -8,6 +8,7 @@ tmonier_punchout:
             unavailable: 'Te artykuły nie są już dostępne i zostały pominięte: %parts%'
         menu:
             buyers: 'Nabywcy PunchOut'
+            logs: 'Dziennik PunchOut'
         secret:
             title: 'Nowy wspólny sekret'
             help: 'Skopiuj go teraz i przekaż kupującemu: nie zostanie ponownie wyświetlony (zapisywany jest tylko jego skrót).'
@@ -26,6 +27,14 @@ tmonier_punchout:
             unknown: 'Nieznany artykuł'
             empty: 'Brak artykułów.'
             back: 'Wróć do mojego systemu zakupowego'
+        log:
+            buyer: Kupujący
+            direction: Kierunek
+            type: Typ
+            payload_id: payloadID
+            status: Status
+            no_body: 'Treść nie jest przechowywana (log_bodies wyłączone); tylko jej SHA-256.'
+        message_logs: 'Dziennik PunchOut'
     form:
         buyer:
             name: Nazwa

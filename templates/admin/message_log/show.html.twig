@@ -1,0 +1,26 @@
+{% set log = hookable_metadata.context.resource %}
+
+<div class="container-xl">
+    <div class="card mb-3">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">{{ 'sylius.ui.date'|trans }}</dt><dd class="col-sm-9">{{ log.createdAt|date('Y-m-d H:i:s') }}</dd>
+                <dt class="col-sm-3">{{ 'tmonier_punchout.ui.log.buyer'|trans }}</dt><dd class="col-sm-9">{{ log.buyer.name|default('—') }}</dd>
+                <dt class="col-sm-3">{{ 'tmonier_punchout.ui.log.direction'|trans }}</dt><dd class="col-sm-9">{{ log.direction }}</dd>
+                <dt class="col-sm-3">{{ 'tmonier_punchout.ui.log.type'|trans }}</dt><dd class="col-sm-9">{{ log.messageType }}</dd>
+                <dt class="col-sm-3">{{ 'tmonier_punchout.ui.log.payload_id'|trans }}</dt><dd class="col-sm-9">{{ log.payloadId }}</dd>
+                <dt class="col-sm-3">{{ 'tmonier_punchout.ui.log.status'|trans }}</dt><dd class="col-sm-9">{{ log.status }}</dd>
+                <dt class="col-sm-3">SHA-256</dt><dd class="col-sm-9"><code>{{ log.bodyHash }}</code></dd>
+            </dl>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            {% if log.maskedBody is not null %}
+                <pre class="mb-0" {{ sylius_test_html_attribute('tmonier-punchout-log-body') }}>{{ log.maskedBody }}</pre>
+            {% else %}
+                <p class="text-secondary mb-0">{{ 'tmonier_punchout.ui.log.no_body'|trans }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
