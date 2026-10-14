@@ -81,7 +81,11 @@ phases:
       stories: [US-001, US-007, US-013, US-018, US-026]
       pulled_forward: [US-015, US-021]   # blocage du checkout, annulation (message vide)
       review: sprints/sprint-001/review-findings.md
-      next: sprint 2 en priorité US-008 (rate limiting, Argon2id coûteux) et US-004 (domaines obligatoires)
+    sprint_002:
+      status: done           # CI 8/8 vert (2026-10-14)
+      stories: [US-002, US-004, US-008, US-009, US-014, US-016, US-017]
+      review: sprints/sprint-002/review-findings.md   # 2 majeurs (limite par identité, déconnexion fin de session) corrigés
+      next: sprint 3 — US-005 (UNSPSC, unités), US-010 (ProfileRequest), US-019 (taxes/port), US-022/023 (edit/inspect), US-024 (journal)
 
 constraints:
   - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier
@@ -89,5 +93,5 @@ constraints:
   - aucun identifiant ni secret réaliste en dur dans les tests (GitGuardian)
   - pas de communication tant que le positionnement vs Sylius Plus n'est pas établi
 
-next_action: "Sprint 2 (sécurité, iframe) sur accord utilisateur"
+next_action: "Sprint 3 (re-punchout, conformité, journal) sur accord utilisateur"
 next_command: "/workflow:implement"
