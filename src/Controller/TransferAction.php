@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Core\Model\AdjustmentInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Storage\CartStorageInterface;
@@ -14,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\MessageOptions;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
@@ -99,11 +101,35 @@ final readonly class TransferAction
             $this->supplierIdentity,
             $session->getFromDomain(),
             $session->getFromIdentity(),
+            $this->messageOptions($session, $cancel ? null : $cart),
         );
 
         $this->close($session, $cart, $cancel ? PunchoutSession::STATUS_CANCELLED : PunchoutSession::STATUS_TRANSFERRED);
 
         return $this->postToReturnUrl($returnUrl, base64_encode($xml));
+    }
+
+    /** Language of the descriptions and, when the buyer wants them (US-019), tax and shipping without tax. */
+    private function messageOptions(PunchoutSession $session, ?OrderInterface $cart): MessageOptions
+    {
+        $language = str_replace('_', '-', $cart?->getLocaleCode() ?? $session->getBuyer()?->getChannel()?->getDefaultLocale()?->getCode() ?? 'en');
+        $buyer = $session->getBuyer();
+        if (!$cart instanceof OrderInterface || !$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
+            return new MessageOptions($language);
+        }
+        $shipping = $cart->getAdjustmentsTotal(AdjustmentInterface::SHIPPING_ADJUSTMENT)
+            + $cart->getAdjustmentsTotal(AdjustmentInterface::ORDER_SHIPPING_PROMOTION_ADJUSTMENT);
+
+        return new MessageOptions(
+            $language,
+            $buyer->isIncludeTax() ? $this->decimal($cart->getTaxTotal()) : null,
+            $buyer->getIncludeShipping() === true ? $this->decimal($shipping) : null,
+        );
+    }
+
+    private function decimal(int $amount): string
+    {
+        return number_format($amount / 100, 2, '.', '');
     }
 
     /**

@@ -37,6 +37,8 @@ tmonier_punchout:
             fromIdentities: 'Identità From (acquirente)'
             senderIdentities: 'Identità Sender (rete o sistema)'
             identities_format: "Un'identità per riga: il dominio e poi l'identità, es. NetworkId AN01000000001 o DUNS 123456789."
+            include_tax: "Invia l'imposta del carrello"
+            include_shipping: 'Invia le spese di spedizione del carrello'
     flash:
         buyer:
             created: "L'acquirente PunchOut è stato creato."

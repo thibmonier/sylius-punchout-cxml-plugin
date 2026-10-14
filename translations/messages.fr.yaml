@@ -37,6 +37,8 @@ tmonier_punchout:
             fromIdentities: 'Identités From (acheteur)'
             senderIdentities: 'Identités Sender (réseau ou système)'
             identities_format: "Une identité par ligne : le domaine puis l'identité, ex. NetworkId AN01000000001 ou DUNS 123456789."
+            include_tax: 'Envoyer la taxe du panier'
+            include_shipping: 'Envoyer les frais de port du panier'
     flash:
         buyer:
             created: "L'acheteur PunchOut a été créé."

@@ -10,6 +10,7 @@ use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
@@ -93,6 +94,8 @@ final class BuyerAdminTest extends WebTestCase
         $buyer = $this->buyer($code);
         self::assertSame(['*.ariba.com', 'ariba.example.com'], $buyer->getReturnDomains());
         self::assertSame(['https://s1.ariba.com', 'https://s2.ariba.com'], $buyer->getIframeOrigins());
+        self::assertTrue($buyer->isIncludeTax());
+        self::assertNotTrue($buyer->getIncludeShipping());
     }
 
     public function testAFromIdentityBelongsToASingleBuyer(): void
@@ -128,6 +131,9 @@ final class BuyerAdminTest extends WebTestCase
         $form['tmonier_punchout_buyer[senderIdentities]'] = 'NetworkId AN-' . bin2hex(random_bytes(3));
         $form['tmonier_punchout_buyer[returnDomains]'] = $returnDomains;
         $form['tmonier_punchout_buyer[iframeOrigins]'] = $iframeOrigins;
+        $includeTax = $form['tmonier_punchout_buyer[includeTax]'];
+        self::assertInstanceOf(ChoiceFormField::class, $includeTax);
+        $includeTax->tick();
         $this->client->submit($form);
     }
 

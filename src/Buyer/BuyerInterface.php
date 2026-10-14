@@ -61,6 +61,10 @@ interface BuyerInterface extends ResourceInterface
 
     public function setIncludeShipping(?bool $includeShipping): void;
 
+    public function isIncludeTax(): bool;
+
+    public function setIncludeTax(bool $includeTax): void;
+
     /** @return Collection<int, BuyerIdentity> */
     public function getIdentities(): Collection;
 

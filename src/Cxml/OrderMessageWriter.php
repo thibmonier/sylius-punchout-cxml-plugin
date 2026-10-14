@@ -16,9 +16,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\TransferLine;
  */
 final class OrderMessageWriter
 {
-    private const DOCTYPE_PUBLIC = '-//cXML.org//DTD cXML 1.2//EN';
-
-    private const DOCTYPE_SYSTEM = 'http://xml.cxml.org/schemas/cXML/1.2.071/cXML.dtd';
+    use CxmlDocumentTrait;
 
     private const CXML_VERSION = '1.2.071';
 
@@ -36,6 +34,7 @@ final class OrderMessageWriter
         string $supplierIdentity = 'supplier',
         string $buyerDomain = 'NetworkId',
         string $buyerIdentity = 'buyer',
+        MessageOptions $options = new MessageOptions(),
     ): string {
         $doc = new \DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = true;
@@ -87,9 +86,17 @@ final class OrderMessageWriter
         $moneyEl->textContent = $total;
         $totalEl->appendChild($moneyEl);
 
+        // DTD order: Total, ShipTo?, Shipping?, Tax?
+        if ($options->shipping !== null) {
+            $poomHeader->appendChild($this->amount($doc, 'Shipping', $options->shipping, $currency, $options->language, 'Shipping'));
+        }
+        if ($options->tax !== null) {
+            $poomHeader->appendChild($this->amount($doc, 'Tax', $options->tax, $currency, $options->language, 'Tax'));
+        }
+
         // ItemIn elements
         foreach ($lines as $line) {
-            $poom->appendChild($this->buildItemIn($doc, $line));
+            $poom->appendChild($this->buildItemIn($doc, $line, $options->language));
         }
 
         return $this->prependDoctype($doc->saveXML() ?: '');
@@ -106,7 +113,22 @@ final class OrderMessageWriter
         $credential->appendChild($identityEl);
     }
 
-    private function buildItemIn(\DOMDocument $doc, TransferLine $line): \DOMElement
+    private function amount(\DOMDocument $doc, string $name, string $value, string $currency, string $language, string $description): \DOMElement
+    {
+        $element = $doc->createElement($name);
+        $money = $doc->createElement('Money');
+        $money->setAttribute('currency', $currency);
+        $money->textContent = $value;
+        $element->appendChild($money);
+        $descriptionElement = $doc->createElement('Description');
+        $descriptionElement->setAttribute('xml:lang', $language);
+        $descriptionElement->textContent = $description;
+        $element->appendChild($descriptionElement);
+
+        return $element;
+    }
+
+    private function buildItemIn(\DOMDocument $doc, TransferLine $line, string $language): \DOMElement
     {
         $itemIn = $doc->createElement('ItemIn');
         $itemIn->setAttribute('quantity', (string) $line->quantity);
@@ -134,7 +156,7 @@ final class OrderMessageWriter
         $unitPrice->appendChild($money);
 
         $desc = $doc->createElement('Description');
-        $desc->setAttribute('xml:lang', 'en');
+        $desc->setAttribute('xml:lang', $language);
         $desc->textContent = $line->description;
         $itemDetail->appendChild($desc);
 
@@ -150,33 +172,5 @@ final class OrderMessageWriter
         $itemDetail->appendChild($classification);
 
         return $itemIn;
-    }
-
-    private function timestamp(): string
-    {
-        return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
-            ->format('Y-m-d\TH:i:sP');
-    }
-
-    private function prependDoctype(string $xml): string
-    {
-        if (!str_starts_with($xml, '<?xml')) {
-            return $xml;
-        }
-
-        $nl = strpos($xml, "\n");
-        if ($nl === false) {
-            return $xml;
-        }
-
-        $declaration = substr($xml, 0, $nl);
-        $rest = substr($xml, $nl);
-        $doctype = sprintf(
-            "\n<!DOCTYPE cXML PUBLIC \"%s\" \"%s\">",
-            self::DOCTYPE_PUBLIC,
-            self::DOCTYPE_SYSTEM,
-        );
-
-        return $declaration . $doctype . $rest;
     }
 }

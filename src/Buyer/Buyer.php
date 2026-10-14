@@ -37,6 +37,8 @@ class Buyer implements BuyerInterface, \Stringable
 
     private ?bool $includeShipping = null;
 
+    private bool $includeTax = false;
+
     /** @var Collection<int, BuyerIdentity> */
     private Collection $identities;
 
@@ -162,6 +164,16 @@ class Buyer implements BuyerInterface, \Stringable
     public function setIncludeShipping(?bool $includeShipping): void
     {
         $this->includeShipping = $includeShipping;
+    }
+
+    public function isIncludeTax(): bool
+    {
+        return $this->includeTax;
+    }
+
+    public function setIncludeTax(bool $includeTax): void
+    {
+        $this->includeTax = $includeTax;
     }
 
     public function getIdentities(): Collection

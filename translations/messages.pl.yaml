@@ -37,6 +37,8 @@ tmonier_punchout:
             fromIdentities: 'Tożsamości From (kupujący)'
             senderIdentities: 'Tożsamości Sender (sieć lub system)'
             identities_format: 'Jedna tożsamość w wierszu: domena, potem tożsamość, np. NetworkId AN01000000001 lub DUNS 123456789.'
+            include_tax: 'Wysyłaj podatek koszyka'
+            include_shipping: 'Wysyłaj koszt dostawy koszyka'
     flash:
         buyer:
             created: 'Nabywca PunchOut został utworzony.'

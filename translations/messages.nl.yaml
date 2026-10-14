@@ -37,6 +37,8 @@ tmonier_punchout:
             fromIdentities: 'From-identiteiten (koper)'
             senderIdentities: 'Sender-identiteiten (netwerk of systeem)'
             identities_format: 'Eén identiteit per regel: het domein en dan de identiteit, bijv. NetworkId AN01000000001 of DUNS 123456789.'
+            include_tax: 'Belasting van de winkelwagen meesturen'
+            include_shipping: 'Verzendkosten van de winkelwagen meesturen'
     flash:
         buyer:
             created: 'PunchOut-koper is aangemaakt.'
