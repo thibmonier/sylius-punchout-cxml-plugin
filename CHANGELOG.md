@@ -20,4 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secret rotation (two active secrets), imposed secret, several From / Sender identities (US-002)
 - Authentication failures limited per buyer identity whatever the address; strict ISO 8601 setup timestamps; expired payloadIDs purged; return hosts matched exactly (`*.domain` for subdomains); the shopper is logged out of the buyer account when the PunchOut session ends or expires; imposed secrets of 16 to 256 non-trivial characters
 - Side cart and cart page without Sylius checkout in a PunchOut session (US-014); open sessions expire after `session_lifetime` (US-017)
+- `ProfileRequest`; `edit` (cart rebuilt from the ItemOut) and `inspect` (read-only page) (US-010, US-022, US-023)
+- UNSPSC codes per taxon and product, units of measure, buyer defaults; optional tax and shipping in the returned cart (US-005, US-019)
+- Journal of the exchanges with masked bodies and an admin grid (US-024)
+
+### Fixed
+
+- The setup response carried `inReplyTo` on the cXML root, which the cXML 1.2.071 DTD does not allow
+- `Extrinsic` elements are read from `PunchOutSetupRequest` and only the allowed ones are kept
+
+### Added (continued)
+
 - Buyer simulator in TestApplication with cXML round-trip and DTD validation (US-026)

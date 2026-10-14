@@ -6,11 +6,11 @@
 PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-> **Status: in development, not released.** Available today (sprints 1 and 2): cXML `create`
-> PunchOut — setup with replay protection and rate limiting, session (iframe ready), cart transfer and
-> cancel, Sylius checkout replaced by the transfer — buyer admin (secret rotation, several identities,
-> mandatory return domains) and buyer simulator. Coming next: `edit` / `inspect`, UNSPSC and units,
-> SAP OCI, exchange log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
+> **Status: in development, not released.** Available today (sprints 1 to 3): cXML PunchOut
+> `create`, `edit` and `inspect`, `ProfileRequest`, cart transfer and cancel, UNSPSC codes and units,
+> optional tax and shipping, exchange log — with replay protection, rate limiting and iframe support —
+> buyer admin and buyer simulator. Coming next: SAP OCI, GDPR tools (purge, erasure), diagnostic
+> command. Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
@@ -30,6 +30,19 @@ refuses replayed requests (same `payloadID`, or a `timestamp` outside the replay
 URL must be HTTPS and match one of the buyer's allowed domains (deny by default); it is checked at
 setup time and again before the cart is sent. An open PunchOut session expires after
 `session_lifetime`.
+
+## Requisitions, classification and log
+
+- **edit** rebuilds the cart from the items of the requisition (`SupplierPartAuxiliaryID` written by
+  the transfer, else `SupplierPartID`); items no longer sold are left out and reported. **inspect**
+  shows the requisition read only; going back sends a message without items.
+- Each line carries a **UNSPSC** `Classification` and a `UnitOfMeasure`: set them on the product
+  (code and unit) or the taxon (code, inherited by its products and sub-taxons) in the admin; the
+  buyer defines the defaults. Decorate `tmonier_punchout.classification.item_classifier` to take them
+  from elsewhere.
+- The buyer chooses whether the **tax** and the **shipping** of the cart are sent.
+- **PunchOut log** (admin): every exchange with its cXML status and the SHA-256 of its body; with
+  `log_bodies: true`, the body itself, shared secrets removed and e-mail addresses masked.
 
 ## Requirements
 
