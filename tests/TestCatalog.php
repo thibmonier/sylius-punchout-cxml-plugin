@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Addressing\Model\ZoneInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\ChannelPricingInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
+use Sylius\Component\Core\Model\TaxRateInterface;
+use Sylius\Component\Taxation\Model\TaxCategoryInterface;
 use Sylius\Component\Order\Model\AdjustmentInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
@@ -235,9 +240,149 @@ final readonly class TestCatalog
         return $order;
     }
 
+    /**
+     * Creates an enabled product with one untracked variant sold on the channel at $priceCentimes.
+     * The variant gets $taxCategory when given, so the Sylius taxation processor applies its rates.
+     */
+    public function createVariant(
+        ChannelInterface $channel,
+        int $priceCentimes,
+        ?TaxCategoryInterface $taxCategory = null,
+    ): ProductVariantInterface {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $this->managed($channel);
+        $code = 'PO_TEST_' . strtoupper(bin2hex(random_bytes(5)));
+        $locale = $channel->getDefaultLocale()?->getCode() ?? 'en_US';
+
+        /** @var ProductInterface $product */
+        $product = $this->container->get('sylius.factory.product')->createWithVariant();
+        $product->setCode($code);
+        $product->setCurrentLocale($locale);
+        $product->setFallbackLocale($locale);
+        $product->setName('PunchOut test product ' . $code);
+        $product->setSlug(strtolower($code));
+        $product->addChannel($channel);
+
+        $variant = $product->getVariants()->first();
+        $this->assertVariant($variant);
+        $variant->setCode($code . '_V');
+        $variant->setCurrentLocale($locale);
+        $variant->setFallbackLocale($locale);
+        $variant->setName('PunchOut test product ' . $code);
+        $variant->setTracked(false);
+        $variant->setTaxCategory($taxCategory);
+
+        /** @var ChannelPricingInterface $pricing */
+        $pricing = $this->container->get('sylius.factory.channel_pricing')->createNew();
+        $pricing->setChannelCode((string) $channel->getCode());
+        $pricing->setPrice($priceCentimes);
+        $variant->addChannelPricing($pricing);
+
+        $em->persist($product);
+        $em->flush();
+
+        return $variant;
+    }
+
+    /**
+     * Makes the channel's default tax zone carry a rate of $rate, included in prices or not, and
+     * returns its tax category. The cart has no address, so Sylius taxes it with this zone.
+     */
+    public function createTaxCategoryWithRate(ChannelInterface $channel, float $rate, bool $includedInPrice): TaxCategoryInterface
+    {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $this->managed($channel);
+        $suffix = strtoupper(bin2hex(random_bytes(4)));
+
+        /** @var ZoneInterface $zone */
+        $zone = $this->container->get('sylius.factory.zone')->createNew();
+        $zone->setCode('PO_ZONE_' . $suffix);
+        $zone->setName('PunchOut test zone');
+        $zone->setType(ZoneInterface::TYPE_COUNTRY);
+        $em->persist($zone);
+        $channel->setDefaultTaxZone($zone);
+
+        /** @var TaxCategoryInterface $category */
+        $category = $this->container->get('sylius.factory.tax_category')->createNew();
+        $category->setCode('PO_TAX_' . $suffix);
+        $category->setName('PunchOut test tax');
+        $em->persist($category);
+
+        /** @var TaxRateInterface $taxRate */
+        $taxRate = $this->container->get('sylius.factory.tax_rate')->createNew();
+        $taxRate->setCode('PO_RATE_' . $suffix);
+        $taxRate->setName('PunchOut test rate');
+        $taxRate->setAmount($rate);
+        $taxRate->setIncludedInPrice($includedInPrice);
+        $taxRate->setCalculator('default');
+        $taxRate->setCategory($category);
+        $taxRate->setZone($zone);
+        $em->persist($taxRate);
+        $em->flush();
+
+        return $category;
+    }
+
+    /**
+     * Takes the channel out of every cart promotion (random fixtures), so prices are the catalog prices.
+     * Rolled back with the test transaction.
+     */
+    public function withoutPromotions(ChannelInterface $channel): void
+    {
+        $channel = $this->managed($channel);
+        foreach ($this->container->get('sylius.repository.promotion')->findAll() as $promotion) {
+            if ($promotion instanceof \Sylius\Component\Core\Model\PromotionInterface) {
+                $promotion->removeChannel($channel);
+            }
+        }
+        $this->container->get(EntityManagerInterface::class)->flush();
+    }
+
+    /** Gives a buyer channel back as an entity managed by the current entity manager. */
+    public function managed(ChannelInterface $channel): ChannelInterface
+    {
+        $found = $this->container->get('sylius.repository.channel')->find($channel->getId());
+        if (!$found instanceof ChannelInterface) {
+            throw new \RuntimeException('Channel not found');
+        }
+
+        return $found;
+    }
+
+    /** Creates a regular (non PunchOut) cart owned by the customer, as the shop does for a logged-in customer. */
+    public function createRegularCart(BuyerInterface $buyer, ProductVariantInterface $variant): OrderInterface
+    {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $buyer->getChannel();
+        $customer = $buyer->getCustomer();
+        if (!$channel instanceof ChannelInterface || !$customer instanceof CustomerInterface) {
+            throw new \RuntimeException('Buyer needs a channel and a customer');
+        }
+        $order = $this->buildCart($channel, $customer, $em);
+        $order->setCustomerWithAuthorization($order->getCustomer());
+
+        /** @var \Sylius\Component\Core\Model\OrderItemInterface $item */
+        $item = $this->container->get('sylius.factory.order_item')->createNew();
+        $item->setVariant($variant);
+        $this->container->get('sylius.modifier.order_item_quantity')->modify($item, 2);
+        $this->container->get('sylius.modifier.order')->addToOrder($order, $item);
+        $this->container->get('sylius.order_processing.order_processor')->process($order);
+        $em->flush();
+
+        return $order;
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /** @phpstan-assert ProductVariantInterface $variant */
+    private function assertVariant(mixed $variant): void
+    {
+        if (!$variant instanceof ProductVariantInterface) {
+            throw new \RuntimeException('The product factory did not create a variant');
+        }
+    }
 
     private function buildCart(
         ?ChannelInterface $channel,

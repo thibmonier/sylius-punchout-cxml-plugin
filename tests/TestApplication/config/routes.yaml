@@ -1,8 +1,5 @@
 tmonier_punchout:
     resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes.yaml"
 
-tmonier_punchout_shop:
-    resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes/shop.yaml"
-
 tmonier_punchout_simulator:
     resource: "@TmonierSyliusPunchoutCxmlPlugin/tests/TestApplication/config/routes/simulator.yaml"

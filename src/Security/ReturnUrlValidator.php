@@ -16,7 +16,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
  *
  * Full domain-whitelist enforcement is sprint 2; this class is already interface-ready.
  */
-final class ReturnUrlValidator
+final readonly class ReturnUrlValidator
 {
     /**
      * IPv4 ranges that must never be a return-URL host.
@@ -48,6 +48,13 @@ final class ReturnUrlValidator
     ];
 
     /**
+     * @param list<string> $insecureHosts development-only hosts allowed over HTTP and on local addresses
+     */
+    public function __construct(private array $insecureHosts = [])
+    {
+    }
+
+    /**
      * @throws InvalidReturnUrlException
      */
     public function validate(string $url, ?BuyerInterface $buyer): void
@@ -68,14 +75,18 @@ final class ReturnUrlValidator
             return false;
         }
 
-        // HTTPS mandatory
-        if (($parsed['scheme'] ?? '') !== 'https') {
-            return false;
-        }
-
         // Normalize host to lowercase before any comparison (hostnames are case-insensitive)
         $host = strtolower($parsed['host'] ?? '');
         if ($host === '') {
+            return false;
+        }
+
+        if (in_array($host, $this->insecureHosts, true)) {
+            return in_array($parsed['scheme'] ?? '', ['http', 'https'], true);
+        }
+
+        // HTTPS mandatory
+        if (($parsed['scheme'] ?? '') !== 'https') {
             return false;
         }
 

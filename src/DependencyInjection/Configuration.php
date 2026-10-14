@@ -89,6 +89,11 @@ final class Configuration implements ConfigurationInterface
                     ->scalarPrototype()->end()
                     ->defaultValue(['UserEmail', 'UniqueName', 'CostCenter'])
                 ->end()
+                ->arrayNode('insecure_return_url_hosts')
+                    ->info('Development only: hosts whose return URL may use plain HTTP and a local address (e.g. the buyer simulator on localhost). Keep empty in production.')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([])
+                ->end()
                 ->scalarNode('driver')->defaultValue(SyliusResourceBundle::DRIVER_DOCTRINE_ORM)->end()
             ->end()
         ;

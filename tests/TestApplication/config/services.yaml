@@ -3,4 +3,16 @@ services:
         arguments:
             $twig: '@twig'
             $csrfTokenManager: '@security.csrf.token_manager'
+            $httpKernel: '@http_kernel'
+        public: true
+
+    Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\CartTestController:
+        arguments:
+            $cartContext: '@sylius.context.cart'
+            $orderItemFactory: '@sylius.factory.order_item'
+            $quantityModifier: '@sylius.modifier.order_item_quantity'
+            $orderModifier: '@sylius.modifier.order'
+            $orderProcessor: '@sylius.order_processing.order_processor'
+            $variantRepository: '@sylius.repository.product_variant'
+            $entityManager: '@doctrine.orm.entity_manager'
         public: true

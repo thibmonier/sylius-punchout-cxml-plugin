@@ -14,3 +14,14 @@ tmonier_punchout_simulator_csrf_token:
     path: /simulator/csrf-token
     controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\SimulatorController::csrfToken
     methods: [GET]
+
+# Test-only: current cart (through the Sylius composite cart context) and add-to-cart.
+tmonier_punchout_test_cart:
+    path: /simulator/test/cart
+    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\CartTestController::show
+    methods: [GET]
+
+tmonier_punchout_test_cart_add:
+    path: /simulator/test/cart/add
+    controller: Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller\CartTestController::add
+    methods: [POST]

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Core\Storage\CartStorageInterface;
+use Sylius\Component\Order\Processor\OrderProcessorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
@@ -22,17 +24,18 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\TransferLineExtractor;
 use Twig\Environment as TwigEnvironment;
 
 /**
- * POST /punchout/transfer
+ * POST /punchout/transfer and POST /punchout/cancel (route default `cancel: true`).
  *
- * Builds a cXML PunchOutOrderMessage from the shopper's PunchOut cart (R2)
- * and posts it back to the buyer's procurement system via a self-submitting
- * HTML form (browser-side POST to the returnUrl).
- *
- * R3: CSRF token required (intent: tmonier_punchout_transfer, field: _csrf_token).
- * R6: returnUrl is re-validated against ReturnUrlValidator before use.
+ * Sends the PunchOut cart back to the procurement system as a cXML PunchOutOrderMessage posted by
+ * the shopper's browser (self-submitting form, `target="_top"` to leave the buyer's iframe), then
+ * closes the PunchOut session. Cancelling sends the same message without any item.
  */
 final readonly class TransferAction
 {
+    public const CSRF_TRANSFER = 'tmonier_punchout_transfer';
+
+    public const CSRF_CANCEL = 'tmonier_punchout_cancel';
+
     public function __construct(
         private CurrentPunchoutSession $currentPunchoutSession,
         private TransferLineExtractor $transferLineExtractor,
@@ -40,137 +43,114 @@ final readonly class TransferAction
         private OrderMessageWriter $orderMessageWriter,
         private PayloadIdGenerator $payloadIdGenerator,
         private EntityManagerInterface $entityManager,
-        private TokenStorageInterface $tokenStorage,
         private CsrfTokenManagerInterface $csrfTokenManager,
         private ReturnUrlValidator $returnUrlValidator,
         private TwigEnvironment $twig,
+        private OrderProcessorInterface $orderProcessor,
+        private CartStorageInterface $cartStorage,
         private bool $keepTransferredCarts = false,
         private string $supplierDomain = 'NetworkId',
         private string $supplierIdentity = 'supplier',
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, bool $cancel = false): Response
     {
-        // 1. Check active PunchOut session (must be first — 403 even without CSRF)
         $session = $this->currentPunchoutSession->getCurrent();
-        if (!$session instanceof PunchoutSession || !$session->isActive()) {
-            $forbidden = new Response('No active PunchOut session', Response::HTTP_FORBIDDEN);
-            $forbidden->headers->set('Cache-Control', 'no-store');
-
-            return $forbidden;
+        if (!$session instanceof PunchoutSession) {
+            return $this->plain('No active PunchOut session', Response::HTTP_FORBIDDEN);
         }
 
-        // 2. R3: Validate CSRF token
-        $csrfToken = new CsrfToken('tmonier_punchout_transfer', $request->request->getString('_csrf_token'));
-        if (!$this->csrfTokenManager->isTokenValid($csrfToken)) {
-            $invalid = new Response('Invalid CSRF token', Response::HTTP_UNPROCESSABLE_ENTITY);
-            $invalid->headers->set('Cache-Control', 'no-store');
-
-            return $invalid;
+        $intent = $cancel ? self::CSRF_CANCEL : self::CSRF_TRANSFER;
+        if (!$this->csrfTokenManager->isTokenValid(new CsrfToken($intent, $request->request->getString('_csrf_token')))) {
+            return $this->plain('Invalid CSRF token', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // 3. Check authenticated user
-        $user = $this->tokenStorage->getToken()?->getUser();
-        if (!$user instanceof UserInterface) {
-            $forbidden = new Response('Not authenticated', Response::HTTP_FORBIDDEN);
-            $forbidden->headers->set('Cache-Control', 'no-store');
-
-            return $forbidden;
-        }
-
-        // 4. R6: Re-validate the returnUrl stored in the session
+        // The return URL was checked at setup time; check it again right before posting the cart to it.
         $returnUrl = $session->getReturnUrl();
-        $buyer = $session->getBuyer();
 
         try {
-            $this->returnUrlValidator->validate($returnUrl, $buyer);
+            $this->returnUrlValidator->validate($returnUrl, $session->getBuyer());
         } catch (InvalidReturnUrlException) {
-            $forbidden = new Response('Return URL is no longer valid', Response::HTTP_FORBIDDEN);
-            $forbidden->headers->set('Cache-Control', 'no-store');
-
-            return $forbidden;
+            return $this->plain('Return URL is no longer valid', Response::HTTP_FORBIDDEN);
         }
 
-        // 5. R2: use the session's isolated PunchOut cart (not findLatestCartByChannelAndCustomer)
         $cart = $session->getCart();
-        if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
-            return new Response('No PunchOut cart found', Response::HTTP_UNPROCESSABLE_ENTITY);
+        $lines = [];
+        if (!$cancel && $cart instanceof OrderInterface) {
+            $this->orderProcessor->process($cart);
+            $lines = $this->transferLineExtractor->extract($cart);
         }
-
-        // 6. Extract transfer lines (R5: no taxIncluded flag — neutral detection is automatic)
-        $lines = $this->transferLineExtractor->extract($cart);
-        $total = $this->netPriceCalculator->computeTotal($lines);
-        $currency = $cart->getCurrencyCode() ?? 'EUR';
-        $payloadId = $this->payloadIdGenerator->generate();
-
-        // 7. R4: use persisted buyer identities for the cXML headers
-        $buyerDomain = $session->getFromDomain() ?: 'NetworkId';
-        $buyerIdentity = $session->getFromIdentity() ?: 'buyer';
 
         $xml = $this->orderMessageWriter->write(
             $lines,
-            $total,
-            $currency,
+            $this->netPriceCalculator->computeTotal($lines),
+            $cart?->getCurrencyCode() ?? $session->getBuyer()?->getChannel()?->getBaseCurrency()?->getCode() ?? 'EUR',
             $session->getBuyerCookie(),
-            $payloadId,
+            $this->payloadIdGenerator->generate(),
             $session->getOperation(),
             $this->supplierDomain,
             $this->supplierIdentity,
-            $buyerDomain,
-            $buyerIdentity,
+            $session->getFromDomain(),
+            $session->getFromIdentity(),
         );
 
-        // Mark session as transferred
-        $session->setStatus(PunchoutSession::STATUS_TRANSFERRED);
-        $this->entityManager->flush();
+        $this->close($session, $cart, $cancel ? PunchoutSession::STATUS_CANCELLED : PunchoutSession::STATUS_TRANSFERRED);
 
-        // Optionally empty the cart
-        if (!$this->keepTransferredCarts) {
-            $this->clearCart($cart);
+        return $this->postToReturnUrl($returnUrl, base64_encode($xml));
+    }
+
+    /**
+     * Ends the PunchOut session: the shopper stays logged in and their regular cart becomes the current
+     * cart again. The PunchOut cart is deleted unless `keep_transferred_carts` is enabled.
+     */
+    private function close(PunchoutSession $session, ?OrderInterface $cart, string $status): void
+    {
+        $session->setStatus($status);
+        $this->currentPunchoutSession->clear();
+
+        if ($cart instanceof OrderInterface) {
+            // Sylius stores the current cart id in the HTTP session on every response: forget it.
+            if ($cart->getChannel() instanceof ChannelInterface) {
+                $this->cartStorage->removeForChannel($cart->getChannel());
+            }
+            if (!$this->keepTransferredCarts) {
+                $session->setCart(null);
+                $this->entityManager->remove($cart);
+            }
         }
 
-        // Build a self-submitting form that POSTs the cXML to the returnUrl
-        $xmlBase64 = base64_encode($xml);
+        $this->entityManager->flush();
+    }
 
-        // Generate a cryptographically random nonce for the inline script
+    private function postToReturnUrl(string $returnUrl, string $xmlBase64): Response
+    {
         $nonce = base64_encode(random_bytes(16));
-
-        // Extract the origin of the returnUrl for the form-action CSP directive
-        $parsedReturnUrl = parse_url($returnUrl);
-        $returnUrlOrigin = sprintf(
-            '%s://%s%s',
-            $parsedReturnUrl['scheme'] ?? 'https',
-            $parsedReturnUrl['host'] ?? '',
-            isset($parsedReturnUrl['port']) ? ':' . $parsedReturnUrl['port'] : '',
+        $parts = parse_url($returnUrl);
+        $origin = sprintf(
+            'https://%s%s',
+            is_array($parts) ? ($parts['host'] ?? '') : '',
+            is_array($parts) && isset($parts['port']) ? ':' . $parts['port'] : '',
         );
 
-        $html = $this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/transfer.html.twig', [
+        $response = new Response($this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/transfer.html.twig', [
             'returnUrl' => $returnUrl,
             'xmlBase64' => $xmlBase64,
             'nonce' => $nonce,
-        ]);
-
-        $response = new Response($html, Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
+        ]), Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
         $response->headers->set('Cache-Control', 'no-store');
-        $response->headers->set(
-            'Content-Security-Policy',
-            sprintf(
-                "default-src 'none'; script-src 'nonce-%s'; form-action %s; base-uri 'none'",
-                $nonce,
-                $returnUrlOrigin,
-            ),
-        );
+        $response->headers->set('Referrer-Policy', 'no-referrer');
+        $response->headers->set('Content-Security-Policy', sprintf(
+            "default-src 'none'; script-src 'nonce-%s'; form-action %s; base-uri 'none'",
+            $nonce,
+            $origin,
+        ));
 
         return $response;
     }
 
-    private function clearCart(\Sylius\Component\Core\Model\OrderInterface $cart): void
+    private function plain(string $message, int $status): Response
     {
-        foreach ($cart->getItems() as $item) {
-            $cart->removeItem($item);
-            $this->entityManager->remove($item);
-        }
-        $this->entityManager->flush();
+        return new Response($message, $status, ['Cache-Control' => 'no-store']);
     }
 }

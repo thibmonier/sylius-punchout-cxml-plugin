@@ -7,26 +7,31 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 
 /**
- * Buyer simulator for development and functional testing.
+ * Buyer simulator: plays the procurement system for development and functional tests.
  *
- * THIS CONTROLLER IS NEVER LOADED IN PRODUCTION.
- * It is only registered in tests/TestApplication/config/routes/simulator.yaml
- * which is only imported in the TestApplication.
+ * THIS CONTROLLER IS NEVER LOADED IN PRODUCTION (TestApplication routes only).
  *
- * GET  /simulator/cxml  — display the "send setup request" form
- * POST /simulator/cxml  — build + POST the cXML setup request to /punchout/cxml
- * POST /simulator/receive — receive the PunchOutOrderMessage back from the browser redirect
- * GET  /simulator/csrf-token?intent=X — generate a CSRF token within a request (test helper only)
+ * GET  /simulator/cxml     form of the PunchOutSetupRequest
+ * POST /simulator/cxml     sends it to /punchout/cxml (sub-request, no network) and shows the start URL
+ * POST /simulator/receive  receives the PunchOutOrderMessage posted back by the shopper's browser,
+ *                          decodes it and validates it against the cXML 1.2.071 DTD
+ * GET  /simulator/csrf-token?intent=X  CSRF token generated within a request (test helper)
  */
-final class SimulatorController
+final readonly class SimulatorController
 {
+    private const DTD = __DIR__ . '/../../../Resources/dtd/1.2.071/cXML.dtd';
+
     public function __construct(
-        private readonly Environment $twig,
-        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private Environment $twig,
+        private CsrfTokenManagerInterface $csrfTokenManager,
+        private HttpKernelInterface $httpKernel,
     ) {
     }
 
@@ -37,130 +42,115 @@ final class SimulatorController
         $error = null;
 
         if ($request->isMethod('POST')) {
-            $result = $this->postSetupRequest($request, $startUrl, $error);
+            // Server-to-server call played in-process: the endpoint gets its own throw-away session,
+            // never the shopper's browser session.
+            $setup = Request::create('/punchout/cxml', 'POST', server: ['CONTENT_TYPE' => 'text/xml; charset=UTF-8', 'HTTP_HOST' => $request->getHttpHost(), 'HTTPS' => $request->isSecure() ? 'on' : 'off'], content: $this->setupRequest($request));
+            $setup->setSession(new Session(new MockArraySessionStorage()));
+            $response = $this->httpKernel->handle($setup, HttpKernelInterface::SUB_REQUEST);
+            $result = (string) $response->getContent();
+            if (1 === preg_match('#<URL>([^<]+)</URL>#', $result, $matches)) {
+                $startUrl = html_entity_decode($matches[1], \ENT_XML1);
+            } else {
+                $error = 'The supplier refused the setup request (see the response below).';
+            }
         }
 
-        return new Response(
-            $this->twig->render('simulator/send.html.twig', [
-                'result' => $result,
-                'startUrl' => $startUrl,
-                'error' => $error,
-            ]),
-        );
+        return new Response($this->twig->render('simulator/send.html.twig', [
+            'result' => $result,
+            'startUrl' => $startUrl,
+            'error' => $error,
+        ]));
     }
 
     public function receive(Request $request): Response
     {
-        $cxml = $request->request->get('cXML-urlencoded', '');
+        $encoded = $request->request->getString('cXML-base64');
+        $cxml = $encoded !== '' ? base64_decode($encoded, true) : false;
+        $cxml = is_string($cxml) ? $cxml : '';
 
-        return new Response(
-            $this->twig->render('simulator/receive.html.twig', [
-                'cxml' => $cxml,
-            ]),
-        );
+        return new Response($this->twig->render('simulator/receive.html.twig', [
+            'cxml' => $cxml,
+            'dtdErrors' => $cxml !== '' ? $this->dtdErrors($cxml) : null,
+            'items' => $cxml !== '' ? $this->items($cxml) : [],
+        ]));
+    }
+
+    public function csrfToken(Request $request): JsonResponse
+    {
+        return new JsonResponse(['token' => $this->csrfTokenManager->getToken($request->query->getString('intent'))->getValue()]);
     }
 
     /**
-     * GET /simulator/csrf-token?intent=tmonier_punchout_transfer
+     * Validates our own output against the local DTD (the network URI is replaced by the local file).
      *
-     * Generates (or retrieves) a CSRF token for the given intent within a real
-     * HTTP request context — where the Symfony session IS active — so tests can
-     * obtain a valid token without calling the CSRF manager outside a request.
-     *
-     * Returns JSON: { "token": "<value>" }
-     *
-     * THIS ENDPOINT IS ONLY AVAILABLE IN THE TEST APPLICATION.
-     * It is never registered in the production routes.
+     * @return list<string>
      */
-    public function csrfToken(Request $request): JsonResponse
+    private function dtdErrors(string $cxml): array
     {
-        $intent = $request->query->getString('intent');
+        $local = (string) preg_replace('#(?:PUBLIC\s+"[^"]+"\s+|SYSTEM\s+)"[^"]*cXML\.dtd"#', 'SYSTEM "file://' . realpath(self::DTD) . '"', $cxml, 1);
+        $previous = libxml_use_internal_errors(true);
+        libxml_clear_errors();
 
-        return new JsonResponse([
-            'token' => $this->csrfTokenManager->getToken($intent)->getValue(),
-        ]);
+        try {
+            $document = new \DOMDocument();
+            $document->loadXML($local, \LIBXML_NONET | \LIBXML_DTDLOAD | \LIBXML_DTDVALID);
+
+            return array_values(array_map(static fn (\LibXMLError $error): string => trim($error->message), libxml_get_errors()));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
     }
 
-    private function postSetupRequest(Request $request, ?string &$startUrl, ?string &$error): ?string
+    /** @return list<array{part: string, quantity: string, price: string}> */
+    private function items(string $cxml): array
     {
-        $fromDomain = $request->request->getString('from_domain', 'AribaNetworkUserId');
-        $fromIdentity = $request->request->getString('from_identity', '');
-        $senderDomain = $request->request->getString('sender_domain', 'AribaNetworkUserId');
-        $senderIdentity = $request->request->getString('sender_identity', '');
-        $sharedSecret = $request->request->getString('shared_secret', '');
-        $supplierDomain = $request->request->getString('supplier_domain', 'NetworkId');
-        $supplierIdentity = $request->request->getString('supplier_identity', '');
-        $operation = $request->request->getString('operation', 'create');
+        $document = new \DOMDocument();
+        if (!@$document->loadXML($cxml, \LIBXML_NONET)) {
+            return [];
+        }
+        $xpath = new \DOMXPath($document);
+        $items = [];
+        foreach ($xpath->query('//ItemIn') ?: [] as $itemIn) {
+            if (!$itemIn instanceof \DOMElement) {
+                continue;
+            }
+            $items[] = [
+                'part' => (string) $xpath->evaluate('string(ItemID/SupplierPartID)', $itemIn),
+                'quantity' => $itemIn->getAttribute('quantity'),
+                'price' => (string) $xpath->evaluate('string(ItemDetail/UnitPrice/Money)', $itemIn),
+            ];
+        }
 
-        $returnUrl = $request->getSchemeAndHttpHost() . '/simulator/receive';
+        return $items;
+    }
+
+    private function setupRequest(Request $request): string
+    {
+        $field = static fn (string $name, string $default = ''): string => htmlspecialchars($request->request->getString($name, $default), \ENT_XML1);
+        $returnUrl = htmlspecialchars($request->getSchemeAndHttpHost() . '/simulator/receive', \ENT_XML1);
         $timestamp = (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339);
-        $payloadId = bin2hex(random_bytes(8)) . '.' . time() . '@simulator.local';
+        $payloadId = bin2hex(random_bytes(8)) . '@simulator.local';
 
-        $xml = <<<XML
+        return <<<XML
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2.071/cXML.dtd">
             <cXML payloadID="{$payloadId}" timestamp="{$timestamp}">
                 <Header>
-                    <From>
-                        <Credential domain="{$fromDomain}">
-                            <Identity>{$fromIdentity}</Identity>
-                        </Credential>
-                    </From>
-                    <To>
-                        <Credential domain="{$supplierDomain}">
-                            <Identity>{$supplierIdentity}</Identity>
-                        </Credential>
-                    </To>
+                    <From><Credential domain="{$field('from_domain', 'AribaNetworkUserId')}"><Identity>{$field('from_identity')}</Identity></Credential></From>
+                    <To><Credential domain="{$field('supplier_domain', 'NetworkId')}"><Identity>{$field('supplier_identity')}</Identity></Credential></To>
                     <Sender>
-                        <Credential domain="{$senderDomain}">
-                            <Identity>{$senderIdentity}</Identity>
-                            <SharedSecret>{$sharedSecret}</SharedSecret>
-                        </Credential>
-                        <UserAgent>Simulator/1.0</UserAgent>
+                        <Credential domain="{$field('sender_domain', 'AribaNetworkUserId')}"><Identity>{$field('sender_identity')}</Identity><SharedSecret>{$field('shared_secret')}</SharedSecret></Credential>
+                        <UserAgent>PunchOut simulator</UserAgent>
                     </Sender>
                 </Header>
                 <Request deploymentMode="test">
-                    <PunchOutSetupRequest operation="{$operation}">
+                    <PunchOutSetupRequest operation="{$field('operation', 'create')}">
                         <BuyerCookie>SIM-{$payloadId}</BuyerCookie>
-                        <Extrinsic name="UserEmail">test@simulator.local</Extrinsic>
-                        <BrowserFormPost>
-                            <URL>{$returnUrl}</URL>
-                        </BrowserFormPost>
+                        <BrowserFormPost><URL>{$returnUrl}</URL></BrowserFormPost>
                     </PunchOutSetupRequest>
                 </Request>
             </cXML>
             XML;
-
-        $endpointUrl = $request->getSchemeAndHttpHost() . '/punchout/cxml';
-
-        $ch = curl_init($endpointUrl);
-        curl_setopt_array($ch, [
-            \CURLOPT_POST => true,
-            \CURLOPT_POSTFIELDS => $xml,
-            \CURLOPT_RETURNTRANSFER => true,
-            \CURLOPT_HTTPHEADER => ['Content-Type: text/xml; charset=UTF-8'],
-            \CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, \CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($response === false || $httpCode !== 200) {
-            $error = "HTTP {$httpCode}: " . ($response ?: 'no response');
-
-            return null;
-        }
-
-        // Extract start URL from the response
-        $doc = new \DOMDocument();
-        $doc->loadXML($response, \LIBXML_NONET);
-        $xpath = new \DOMXPath($doc);
-        $urlNodes = $xpath->query('//StartPage/URL');
-        if ($urlNodes !== false && $urlNodes->length > 0) {
-            $startUrl = $urlNodes->item(0)?->textContent;
-        }
-
-        return $response;
     }
 }

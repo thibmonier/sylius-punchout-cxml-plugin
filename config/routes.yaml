@@ -1,3 +1,12 @@
+# Import this file from your application's config/routes:
+#
+# tmonier_sylius_punchout_cxml:
+#     resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes.yaml"
+
+tmonier_punchout_admin:
+    resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes/admin.yaml"
+    prefix: '/%sylius_admin.path_name%'
+
 tmonier_punchout_cxml_endpoint:
     path: /punchout/cxml
     controller: tmonier_punchout.controller.cxml_endpoint
@@ -21,5 +30,7 @@ tmonier_punchout_transfer:
 
 tmonier_punchout_cancel:
     path: /punchout/cancel
-    controller: tmonier_punchout.controller.cancel
+    controller: tmonier_punchout.controller.transfer
     methods: [POST]
+    defaults:
+        cancel: true

@@ -111,4 +111,15 @@ final class ReturnUrlValidatorTest extends TestCase
         $this->validator->validate('https://ARIBA.EXAMPLE.COM/return', $buyer);
         $this->addToAssertionCount(1);
     }
+
+    #[Test]
+    public function it_accepts_http_and_local_addresses_only_for_configured_development_hosts(): void
+    {
+        $validator = new ReturnUrlValidator(['localhost']);
+
+        self::assertTrue($validator->isValid('http://localhost:8101/simulator/receive', null));
+        self::assertFalse($validator->isValid('http://127.0.0.1/simulator/receive', null));
+        self::assertFalse($validator->isValid('http://ariba.example.com/return', null));
+        self::assertFalse((new ReturnUrlValidator())->isValid('http://localhost/simulator/receive', null));
+    }
 }

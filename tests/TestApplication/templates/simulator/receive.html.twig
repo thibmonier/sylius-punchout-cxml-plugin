@@ -3,29 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PunchOut Simulator — Received PunchOutOrderMessage</title>
+    <title>PunchOut Simulator — Cart received</title>
     <style>
-        body { font-family: monospace; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-        h1 { color: #333; }
-        pre { background: #f5f5f5; padding: 1rem; overflow: auto; font-size: 0.8rem; }
-        .success { color: green; font-weight: bold; }
-        .empty { color: #999; }
-        a { color: #007cba; }
+        body { font-family: monospace; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        pre { background: #f5f5f5; padding: 1rem; overflow: auto; font-size: 0.8rem; max-height: 500px; }
+        table { border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 0.25rem 0.75rem; }
+        .valid { color: green; font-weight: bold; } .invalid { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
+<h1>PunchOutOrderMessage received</h1>
 
-<h1>📦 PunchOut Simulator — Received Order Message</h1>
-
-{% if cxml %}
-    <p class="success">✅ PunchOutOrderMessage received.</p>
-    <h2>cXML Payload (cXML-urlencoded)</h2>
-    <pre>{{ cxml }}</pre>
+{% if cxml is empty %}
+    <p class="invalid">No cXML-base64 field received.</p>
 {% else %}
-    <p class="empty">No cXML payload received. The shopper may have cancelled the session.</p>
+    {% if dtdErrors is empty %}
+        <p class="valid" id="dtd-result">DTD cXML 1.2.071: valid</p>
+    {% else %}
+        <p class="invalid" id="dtd-result">DTD cXML 1.2.071: invalid</p>
+        <ul>{% for error in dtdErrors %}<li>{{ error }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if items is empty %}
+        <p id="items">No item: the shopper cancelled the PunchOut session.</p>
+    {% else %}
+        <table id="items">
+            <tr><th>SupplierPartID</th><th>Quantity</th><th>Unit price</th></tr>
+            {% for item in items %}<tr><td>{{ item.part }}</td><td>{{ item.quantity }}</td><td>{{ item.price }}</td></tr>{% endfor %}
+        </table>
+    {% endif %}
+
+    <h2>Message</h2>
+    <pre>{{ cxml }}</pre>
 {% endif %}
 
-<p><a href="/simulator/cxml">← Back to Simulator</a></p>
-
+<p><a href="/simulator/cxml">Start another PunchOut session</a></p>
 </body>
 </html>

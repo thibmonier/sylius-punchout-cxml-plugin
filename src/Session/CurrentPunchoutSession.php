@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Session;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
  * Retrieves the active PunchOut session for the current request from the Symfony session.
@@ -19,6 +21,7 @@ final readonly class CurrentPunchoutSession
     public function __construct(
         private RequestStack $requestStack,
         private EntityManagerInterface $entityManager,
+        private TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -38,6 +41,14 @@ final readonly class CurrentPunchoutSession
         /** @var PunchoutSession|null $punchoutSession */
         $punchoutSession = $this->entityManager->find(PunchoutSession::class, $id);
         if ($punchoutSession === null || !$punchoutSession->isActive()) {
+            return null;
+        }
+
+        // The shop firewall keeps the session on logout: the PunchOut session only belongs to the
+        // customer of its buyer, never to another customer logged in later in the same browser.
+        $user = $this->tokenStorage->getToken()?->getUser();
+        $customer = $punchoutSession->getBuyer()?->getCustomer();
+        if (!$user instanceof ShopUserInterface || $customer === null || $user->getCustomer()?->getId() !== $customer->getId()) {
             return null;
         }
 
