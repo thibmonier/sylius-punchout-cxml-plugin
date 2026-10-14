@@ -1,0 +1,39 @@
+tmonier_punchout:
+    ui:
+        menu:
+            buyers: Compradores PunchOut
+    form:
+        buyer:
+            name: Nombre
+            protocol: Protocolo
+            protocol:
+                cxml: cXML
+                oci: OCI
+            enabled: Activo
+            allowed_return_domains: Dominios de retorno permitidos
+    admin:
+        buyer:
+            title: Compradores PunchOut
+            create: Crear comprador
+            edit: Editar comprador
+            no_results: No se encontraron compradores PunchOut.
+            fields:
+                name: Nombre
+                protocol: Protocolo
+                enabled: Activo
+                created_at: Creado el
+            actions:
+                edit: Editar
+                delete: Eliminar
+    flash:
+        buyer:
+            created: El comprador PunchOut ha sido creado.
+            updated: El comprador PunchOut ha sido actualizado.
+            deleted: El comprador PunchOut ha sido eliminado.
+    error:
+        unauthorized: La autenticación falló.
+        return_url_not_allowed: La URL de retorno no está permitida.
+        session_not_found: Sesión PunchOut no encontrada o expirada.
+        no_active_session: No hay sesión PunchOut activa.
+        xml_parse_error: Error de análisis XML.
+        request_too_large: El cuerpo de la solicitud es demasiado grande.
