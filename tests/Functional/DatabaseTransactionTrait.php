@@ -36,18 +36,16 @@ trait DatabaseTransactionTrait
         // and the open transaction — is shared between the test and all HTTP requests.
         $this->client->disableReboot();
 
-        // The setup rate limiter persists between tests: start each test with a fresh budget.
-        $limiter = static::getContainer()->get('limiter.tmonier_punchout_setup');
-        if ($limiter instanceof RateLimiterFactoryInterface) {
-            foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
-                $limiter->create($ip)->reset();
-            }
+        // The rate limiters persist between tests: start each test with a fresh budget.
+        $limiter = static::getContainer()->get('tmonier_punchout.test.setup_limiter');
+        $failures = static::getContainer()->get('tmonier_punchout.test.authentication_failure_limiter');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $limiter);
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $failures);
+        foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
+            $limiter->create($ip)->reset();
         }
-        $failures = static::getContainer()->get('limiter.tmonier_punchout_authentication_failure');
-        if ($failures instanceof RateLimiterFactoryInterface) {
-            foreach (['test-buyer@example.com', 'test-buyer-e2e@example.com'] as $identity) {
-                $failures->create('aribanetworkuserid|' . $identity)->reset();
-            }
+        foreach (['test-buyer@example.com', 'test-buyer-e2e@example.com'] as $identity) {
+            $failures->create('aribanetworkuserid|' . $identity)->reset();
         }
 
         $em = static::getContainer()->get(EntityManagerInterface::class);

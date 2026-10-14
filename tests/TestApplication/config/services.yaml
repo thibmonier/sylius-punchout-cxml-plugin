@@ -16,3 +16,12 @@ services:
             $variantRepository: '@sylius.repository.product_variant'
             $entityManager: '@doctrine.orm.entity_manager'
         public: true
+
+    # The functional tests reset the rate limiters of the plugin before each test (Symfony 6.4 removes
+    # private services used once from the test container).
+    tmonier_punchout.test.setup_limiter:
+        alias: limiter.tmonier_punchout_setup
+        public: true
+    tmonier_punchout.test.authentication_failure_limiter:
+        alias: limiter.tmonier_punchout_authentication_failure
+        public: true
