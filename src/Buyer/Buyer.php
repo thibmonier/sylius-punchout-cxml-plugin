@@ -38,10 +38,10 @@ class Buyer implements BuyerInterface, \Stringable
     private ?bool $includeShipping = null;
 
     /** @var Collection<int, BuyerIdentity> */
-    private readonly Collection $identities;
+    private Collection $identities;
 
     /** @var Collection<int, BuyerCredential> */
-    private readonly Collection $credentials;
+    private Collection $credentials;
 
     public function __construct()
     {

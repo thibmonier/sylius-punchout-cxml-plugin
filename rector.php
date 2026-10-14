@@ -11,6 +11,12 @@ return RectorConfig::configure()
     ])
     ->withSkip([
         __DIR__ . '/tests/TestApplication',
+        // Doctrine entities: Collections are initialized in constructor but hydrated
+        // again by Doctrine ORM after instantiation — readonly is not compatible.
+        \Rector\Php81\Rector\Property\ReadOnlyPropertyRector::class => [
+            __DIR__ . '/src/Buyer/Buyer.php',
+            __DIR__ . '/src/Session/PunchoutSession.php',
+        ],
     ])
     ->withPhpSets()
     ->withPreparedSets(
