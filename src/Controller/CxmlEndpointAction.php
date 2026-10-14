@@ -89,8 +89,14 @@ final readonly class CxmlEndpointAction
 
         $secretValid = $this->credentialVerifier->verify($setupData->sharedSecret, $buyer);
 
-        if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface || !$secretValid || !$buyer->isEnabled()) {
+        // Unknown buyer or wrong secret → 401 (same response to prevent identity enumeration)
+        if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface || !$secretValid) {
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
+        }
+
+        // Disabled buyer → 403 (identity is known but access is forbidden)
+        if (!$buyer->isEnabled()) {
+            return $this->errorResponse(CxmlStatus::FORBIDDEN, 'Forbidden');
         }
 
         // Validate return URL (HTTPS mandatory; domain whitelist if configured)

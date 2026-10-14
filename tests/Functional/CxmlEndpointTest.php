@@ -169,10 +169,11 @@ final class CxmlEndpointTest extends WebTestCase
     }
 
     /**
-     * US-007 security: a buyer with enabled=false must receive a generic 401
-     * indistinguishable from an unknown-buyer response (no information leakage).
+     * US-007 security: a buyer with enabled=false must receive a 403 cXML response.
+     * The identity is known (correct secret) but access is forbidden.
+     * This is distinct from the unknown-buyer / wrong-secret 401.
      */
-    public function testDisabledBuyerReturns401(): void
+    public function testDisabledBuyerReturns403(): void
     {
         $client = $this->client;
         $catalog = new TestCatalog(static::getContainer());
@@ -198,11 +199,11 @@ final class CxmlEndpointTest extends WebTestCase
         ], $xml);
 
         $response = $client->getResponse();
-        self::assertSame(200, $response->getStatusCode()); // cXML always returns 200 HTTP
-        // Must return 401, same as wrong secret — no information leakage
-        self::assertStringContainsString('<Status code="401"', (string) $response->getContent());
-        // Must not leak the reason (disabled vs wrong secret)
-        self::assertStringContainsString('Unauthorized', (string) $response->getContent());
+        self::assertSame(200, $response->getStatusCode()); // cXML always returns HTTP 200
+        // Must return 403 Forbidden (identity known, access denied)
+        self::assertStringContainsString('<Status code="403"', (string) $response->getContent());
+        // Must not return a StartPage URL
+        self::assertStringNotContainsString('<StartPage>', (string) $response->getContent());
     }
 
     /**
