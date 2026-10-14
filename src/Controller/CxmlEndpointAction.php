@@ -15,6 +15,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\CxmlParseException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\UnsupportedOperationException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\XmlLoadException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
@@ -39,6 +40,7 @@ final readonly class CxmlEndpointAction
         private SafeXmlLoader $xmlLoader,
         private SetupRequestReader $requestReader,
         private SetupResponseWriter $responseWriter,
+        private ProfileResponseWriter $profileWriter,
         private BuyerResolver $buyerResolver,
         private CredentialVerifier $credentialVerifier,
         private ReturnUrlValidator $returnUrlValidator,
@@ -89,24 +91,26 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::NOT_ACCEPTABLE, 'XML parse error');
         }
 
-        // Read the setup request
+        // What is asked: ProfileRequest or PunchOutSetupRequest (OrderRequest comes with v1.1)
         try {
-            $setupData = $this->requestReader->read($doc);
-        } catch (UnsupportedOperationException) {
-            return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
+            $requestName = $this->requestReader->requestName($doc);
+            $header = $this->requestReader->readHeader($doc);
         } catch (CxmlParseException) {
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
+        }
+        if (!in_array($requestName, ['PunchOutSetupRequest', 'ProfileRequest'], true)) {
+            return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         }
 
         // Brute force on one identity is limited whatever the client address (several addresses or
         // a shared proxy): no Argon2id work once the failure budget of the identity is spent.
-        $failures = $this->authenticationFailureLimiter->create(mb_strtolower($setupData->fromDomain) . '|' . $setupData->fromIdentity);
+        $failures = $this->authenticationFailureLimiter->create(mb_strtolower($header->fromDomain) . '|' . $header->fromIdentity);
         if ($failures->consume(0)->getRemainingTokens() === 0) {
             return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60', 'Cache-Control' => 'no-store']);
         }
 
         // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
-        if ($setupData->sharedSecret === '') {
+        if ($header->sharedSecret === '') {
             $this->credentialVerifier->verify('_empty_secret_dummy_', null);
             $failures->consume();
 
@@ -114,17 +118,11 @@ final readonly class CxmlEndpointAction
         }
 
         // Resolve buyer by identities + verify secret (constant-time even when buyer is unknown)
-        $buyer = $this->buyerResolver->resolveByIdentities(
-            $setupData->fromDomain,
-            $setupData->fromIdentity,
-            $setupData->senderDomain,
-            $setupData->senderIdentity,
-        );
-
-        $secretValid = $this->credentialVerifier->verify($setupData->sharedSecret, $buyer);
+        $buyer = $this->buyerResolver->resolveByIdentities($header->fromDomain, $header->fromIdentity, $header->senderDomain, $header->senderIdentity);
+        $secretValid = $this->credentialVerifier->verify($header->sharedSecret, $buyer);
 
         // Unknown buyer or wrong secret → 401 (same response to prevent identity enumeration)
-        if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface || !$secretValid) {
+        if (!$buyer instanceof Buyer || !$secretValid) {
             $failures->consume();
 
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
@@ -136,7 +134,22 @@ final readonly class CxmlEndpointAction
         }
 
         // Anti-replay: timestamp within the window, payloadID never accepted for this buyer
-        if (!$buyer instanceof Buyer || !$this->replayGuard->accept($buyer, $setupData->payloadId, $setupData->timestamp)) {
+        if (!$this->replayGuard->accept($buyer, $header->payloadId, $header->timestamp)) {
+            return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
+        }
+
+        if ($requestName === 'ProfileRequest') {
+            return $this->xmlResponse($this->profileWriter->write(
+                $this->urlGenerator->generate('tmonier_punchout_cxml_endpoint', [], UrlGeneratorInterface::ABSOLUTE_URL),
+                $request->getHost(),
+            ));
+        }
+
+        try {
+            $setupData = $this->requestReader->read($doc);
+        } catch (UnsupportedOperationException) {
+            return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
+        } catch (CxmlParseException) {
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
         }
 
@@ -168,13 +181,7 @@ final readonly class CxmlEndpointAction
         );
 
         $hostname = $request->getHost();
-        $xml = $this->responseWriter->write(
-            $startUrl,
-            $setupData->payloadId,
-            $buyer->getChannel()?->getHostname() ?? $hostname,
-            $buyer->getChannel()?->getCode() ?? 'supplier',
-            $hostname,
-        );
+        $xml = $this->responseWriter->write($startUrl, $hostname);
 
         return $this->xmlResponse($xml, Response::HTTP_OK);
     }

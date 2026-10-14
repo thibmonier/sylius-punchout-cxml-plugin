@@ -110,6 +110,23 @@ trait PunchoutRoundTripTrait
         return (string) preg_replace('/>\s+</', '><', $xml);
     }
 
+    /** Validates a cXML document emitted by the plugin against the local cXML 1.2.071 DTD. */
+    protected function assertValidAgainstTheDtd(string $cxml): void
+    {
+        $dtd = realpath(__DIR__ . '/../Resources/dtd/1.2.071/cXML.dtd');
+        self::assertIsString($dtd);
+        $local = (string) preg_replace('#(?:PUBLIC\s+"[^"]+"\s+|SYSTEM\s+)"[^"]*cXML\.dtd"#', 'SYSTEM "file://' . $dtd . '"', $cxml, 1);
+        $previous = libxml_use_internal_errors(true);
+        libxml_clear_errors();
+        $document = new \DOMDocument();
+        $document->loadXML($local, \LIBXML_NONET | \LIBXML_DTDLOAD | \LIBXML_DTDVALID);
+        $errors = array_map(static fn (\LibXMLError $error): string => trim($error->message), libxml_get_errors());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        self::assertSame([], $errors, $cxml);
+    }
+
     /** @return array{id: int|null, items: list<array{variant: string|null, quantity: int}>} */
     private function json(): array
     {

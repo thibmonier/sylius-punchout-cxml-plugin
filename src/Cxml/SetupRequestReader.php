@@ -19,32 +19,48 @@ final readonly class SetupRequestReader
     {
     }
 
-    public function read(\DOMDocument $doc): SetupRequestData
+    /** Name of the request element (PunchOutSetupRequest, ProfileRequest, OrderRequest…). */
+    public function requestName(\DOMDocument $doc): string
+    {
+        $request = (new \DOMXPath($doc))->query('/cXML/Request/*');
+        $element = $request === false ? null : $request->item(0);
+        if (!$element instanceof \DOMElement) {
+            throw new CxmlParseException('Missing Request element');
+        }
+
+        return $element->nodeName;
+    }
+
+    public function readHeader(\DOMDocument $doc): CxmlHeader
     {
         $xpath = new \DOMXPath($doc);
-
-        // Root cXML element
-        $cxmlNodes = $doc->getElementsByTagName('cXML');
-        if ($cxmlNodes->length === 0) {
+        $documentElement = $doc->documentElement;
+        if (!$documentElement instanceof \DOMElement || $documentElement->nodeName !== 'cXML') {
             throw new CxmlParseException('Missing root cXML element');
         }
 
-        $documentElement = $doc->documentElement;
-        if (!$documentElement instanceof \DOMElement) {
-            throw new CxmlParseException('Missing document element');
-        }
+        return new CxmlHeader(
+            payloadId: $this->requireAttribute($documentElement, 'payloadID'),
+            timestamp: $this->requireAttribute($documentElement, 'timestamp'),
+            fromDomain: $this->requireTextContent($xpath, '/cXML/Header/From/Credential/@domain'),
+            fromIdentity: $this->requireTextContent($xpath, '/cXML/Header/From/Credential/Identity'),
+            senderDomain: $this->requireTextContent($xpath, '/cXML/Header/Sender/Credential/@domain'),
+            senderIdentity: $this->requireTextContent($xpath, '/cXML/Header/Sender/Credential/Identity'),
+            sharedSecret: $this->textContent($xpath, '/cXML/Header/Sender/Credential/SharedSecret') ?? '',
+        );
+    }
 
-        $payloadId = $this->requireAttribute($documentElement, 'payloadID');
-        $timestamp = $this->requireAttribute($documentElement, 'timestamp');
-
-        // From identity
-        $fromDomain = $this->requireTextContent($xpath, '//Header/From/Credential/@domain');
-        $fromIdentity = $this->requireTextContent($xpath, '//Header/From/Credential/Identity');
-
-        // Sender identity
-        $senderDomain = $this->requireTextContent($xpath, '//Header/Sender/Credential/@domain');
-        $senderIdentity = $this->requireTextContent($xpath, '//Header/Sender/Credential/Identity');
-        $sharedSecret = $this->textContent($xpath, '//Header/Sender/Credential/SharedSecret') ?? '';
+    public function read(\DOMDocument $doc): SetupRequestData
+    {
+        $xpath = new \DOMXPath($doc);
+        $header = $this->readHeader($doc);
+        $payloadId = $header->payloadId;
+        $timestamp = $header->timestamp;
+        $fromDomain = $header->fromDomain;
+        $fromIdentity = $header->fromIdentity;
+        $senderDomain = $header->senderDomain;
+        $senderIdentity = $header->senderIdentity;
+        $sharedSecret = $header->sharedSecret;
 
         // Request body
         $setupRequest = $xpath->query('//Request/PunchOutSetupRequest');
@@ -62,14 +78,14 @@ final readonly class SetupRequestReader
         $buyerCookie = $this->requireTextContent($xpath, '//Request/PunchOutSetupRequest/BuyerCookie');
         $browserFormPostUrl = $this->requireTextContent($xpath, '//Request/PunchOutSetupRequest/BrowserFormPost/URL');
 
-        // Extrinsics (filtered by allowed list)
+        // Extrinsics of the setup request, only the allowed ones (personal data minimised)
         $extrinsics = [];
-        $extrinsicNodes = $xpath->query('//Header/Extrinsic');
+        $extrinsicNodes = $xpath->query('/cXML/Request/PunchOutSetupRequest/Extrinsic');
         if ($extrinsicNodes !== false) {
             foreach ($extrinsicNodes as $node) {
                 /** @var \DOMElement $node */
                 $name = $node->getAttribute('name');
-                if ($this->allowedExtrinsics === [] || in_array($name, $this->allowedExtrinsics, true)) {
+                if (in_array($name, $this->allowedExtrinsics, true)) {
                     $extrinsics[$name] = trim($node->textContent);
                 }
             }

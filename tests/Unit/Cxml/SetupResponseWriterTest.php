@@ -21,12 +21,7 @@ final class SetupResponseWriterTest extends TestCase
     #[Test]
     public function it_produces_valid_cxml_structure(): void
     {
-        $xml = $this->writer->write(
-            'https://shop.example.com/punchout/start/test-token',
-            '20261014.abc@buyer.example.com',
-            'NetworkId',
-            'supplier',
-        );
+        $xml = $this->writer->write('https://shop.example.com/punchout/start/test-token');
 
         // Verify well-formed XML and expected structure via XPath
         $doc = new \DOMDocument();
@@ -48,7 +43,7 @@ final class SetupResponseWriterTest extends TestCase
     public function it_includes_start_url(): void
     {
         $startUrl = 'https://shop.example.com/punchout/start/abc123';
-        $xml = $this->writer->write($startUrl, 'payload@host', 'NetworkId', 'supplier');
+        $xml = $this->writer->write($startUrl);
 
         self::assertStringContainsString($startUrl, $xml);
     }
@@ -56,8 +51,8 @@ final class SetupResponseWriterTest extends TestCase
     #[Test]
     public function it_generates_unique_payload_ids(): void
     {
-        $xml1 = $this->writer->write('https://a.example.com/s', 'p1@h', 'N', 's');
-        $xml2 = $this->writer->write('https://a.example.com/s', 'p2@h', 'N', 's');
+        $xml1 = $this->writer->write('https://a.example.com/s');
+        $xml2 = $this->writer->write('https://a.example.com/s');
 
         preg_match('/payloadID="([^"]+)"/', $xml1, $m1);
         preg_match('/payloadID="([^"]+)"/', $xml2, $m2);
@@ -68,7 +63,7 @@ final class SetupResponseWriterTest extends TestCase
     #[Test]
     public function it_uses_iso8601_offset_not_z(): void
     {
-        $xml = $this->writer->write('https://a.example.com/s', 'p@h', 'N', 's');
+        $xml = $this->writer->write('https://a.example.com/s');
 
         preg_match('/timestamp="([^"]+)"/', $xml, $m);
         $timestamp = $m[1] ?? '';
@@ -114,16 +109,18 @@ final class SetupResponseWriterTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_buyer_payload_id_as_in_reply_to(): void
+    public function it_writes_responses_valid_against_the_cxml_dtd(): void
     {
-        $buyerPayloadId = 'test-payload-12345@buyer.com';
-        $xml = $this->writer->write(
-            'https://shop.example.com/s',
-            $buyerPayloadId,
-            'NetworkId',
-            'supplier',
-        );
+        $this->assertValidAgainstTheDtd($this->writer->write('https://shop.example.com/s'));
+        $this->assertValidAgainstTheDtd($this->writer->writeError(401, 'Unauthorized'));
+    }
 
-        self::assertStringContainsString('inReplyTo="' . $buyerPayloadId . '"', $xml);
+    private function assertValidAgainstTheDtd(string $xml): void
+    {
+        $dtd = realpath(__DIR__ . '/../../Resources/dtd/1.2.071/cXML.dtd');
+        self::assertIsString($dtd);
+        $doc = new \DOMDocument();
+        self::assertTrue(@$doc->loadXML(str_replace('http://xml.cxml.org/schemas/cXML/1.2.071/cXML.dtd', $dtd, $xml), \LIBXML_NONET | \LIBXML_DTDLOAD));
+        self::assertTrue(@$doc->validate(), 'Must pass DTD validation: ' . $xml);
     }
 }

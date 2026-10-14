@@ -25,6 +25,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\TransferAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
@@ -54,6 +55,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(SetupRequestReader::class)
         ->arg('$allowedExtrinsics', '%tmonier_punchout.allowed_extrinsics%');
     $services->set(SetupResponseWriter::class);
+    $services->set(ProfileResponseWriter::class);
     $services->set(OrderMessageWriter::class);
 
     // Named aliases for backwards-compatible service IDs
