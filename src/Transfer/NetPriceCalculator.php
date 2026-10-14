@@ -12,9 +12,8 @@ use Sylius\Component\Core\Model\OrderItemUnitInterface;
  *
  * Algorithm:
  * 1. Use getFullDiscountedUnitPrice() (includes unit and order-level discounts).
- * 2. If a tax adjustment on the first unit is NEUTRAL (isNeutral() = true), the
- *    tax is already embedded in the price (tax-inclusive channel). Subtract it to
- *    obtain the net price.
+ * 2. Subtract the NEUTRAL tax adjustments of all the units (tax included in the
+ *    price, tax-inclusive channel) and divide by the quantity.
  *    A non-neutral tax adjustment means the tax is added on top: the price is
  *    already net — do not subtract anything.
  * 3. Return the price as a string with exactly 2 decimal places.
@@ -25,28 +24,18 @@ final class NetPriceCalculator
 {
     public function calculateUnitNetPrice(OrderItemInterface $item): string
     {
-        // getFullDiscountedUnitPrice() returns centimes (integer).
-        $unitPrice = $item->getFullDiscountedUnitPrice();
+        $quantity = max(1, $item->getQuantity());
 
-        // Inspect the first unit's tax adjustments.
-        // Neutral = tax is embedded in the price (TTC / tax-inclusive).
-        // Non-neutral = tax is additional (HT / tax-exclusive).
-        $units = $item->getUnits();
-        foreach ($units as $unit) {
+        // Sylius spreads the tax of a line over its units (e.g. 1.66 / 1.67 / 1.67): remove the tax
+        // included in the price (neutral adjustments) of the whole line, then divide by the quantity.
+        $includedTax = 0;
+        foreach ($item->getUnits() as $unit) {
             /** @var OrderItemUnitInterface $unit */
-            $neutralTax = $this->getNeutralTaxAmount($unit);
-            if ($neutralTax > 0) {
-                // unitPrice (inclusive) = netPrice + embeddedTax
-                // => netPrice = unitPrice - embeddedTax
-                $unitPrice -= $neutralTax;
-            }
-
-            // One unit is sufficient for the rate calculation
-            break;
+            $includedTax += $this->getNeutralTaxAmount($unit);
         }
+        $netUnitPrice = (int) round(($item->getFullDiscountedUnitPrice() * $quantity - $includedTax) / $quantity);
 
-        // Format as decimal string with 2 places (centimes → euros)
-        return number_format($unitPrice / 100, 2, '.', '');
+        return number_format($netUnitPrice / 100, 2, '.', '');
     }
 
     /**

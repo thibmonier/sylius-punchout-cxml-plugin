@@ -122,4 +122,29 @@ final class ReturnUrlValidatorTest extends TestCase
         self::assertFalse($validator->isValid('http://ariba.example.com/return', null));
         self::assertFalse((new ReturnUrlValidator())->isValid('http://localhost/simulator/receive', null));
     }
+
+    #[Test]
+    public function it_still_applies_the_buyer_domains_to_development_hosts(): void
+    {
+        $buyer = $this->createMock(BuyerInterface::class);
+        $buyer->method('getReturnDomains')->willReturn(['ariba.com']);
+
+        self::assertFalse((new ReturnUrlValidator(['localhost']))->isValid('http://localhost/simulator/receive', $buyer));
+    }
+
+    #[Test]
+    #[DataProvider('malformedHosts')]
+    public function it_rejects_malformed_or_non_canonical_hosts(string $url): void
+    {
+        self::assertFalse($this->validator->isValid($url, null));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function malformedHosts(): iterable
+    {
+        yield 'backslash' => ['https://evil.example\\.ariba.com/return'];
+        yield 'decimal IPv4' => ['https://2130706433/return'];
+        yield 'hexadecimal IPv4' => ['https://0x7f000001/return'];
+        yield 'credentials' => ['https://user:pass@ariba.example.com/return'];
+    }
 }

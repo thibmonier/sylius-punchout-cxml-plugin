@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "Orders are placed in your procurement system: transfer your cart to it."

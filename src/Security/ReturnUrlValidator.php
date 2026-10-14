@@ -66,27 +66,25 @@ final readonly class ReturnUrlValidator
 
     public function isValid(string $url, ?BuyerInterface $buyer): bool
     {
-        if ($url === '') {
-            return false;
-        }
-
-        $parsed = parse_url($url);
-        if ($parsed === false) {
+        $parsed = $url === '' ? false : parse_url($url);
+        // No credentials in a return URL; the host must be a real host name or IP address.
+        if ($parsed === false || isset($parsed['user']) || isset($parsed['pass'])) {
             return false;
         }
 
         // Normalize host to lowercase before any comparison (hostnames are case-insensitive)
         $host = strtolower($parsed['host'] ?? '');
-        if ($host === '') {
+        if (!$this->isWellFormedHost($host)) {
             return false;
         }
 
+        $scheme = $parsed['scheme'] ?? '';
         if (in_array($host, $this->insecureHosts, true)) {
-            return in_array($parsed['scheme'] ?? '', ['http', 'https'], true);
+            // Development hosts may use HTTP and local addresses, never escape the buyer's domains.
+            return in_array($scheme, ['http', 'https'], true) && $this->isAllowedForBuyer($host, $buyer);
         }
 
-        // HTTPS mandatory
-        if (($parsed['scheme'] ?? '') !== 'https') {
+        if ($scheme !== 'https') {
             return false;
         }
 
@@ -100,17 +98,35 @@ final readonly class ReturnUrlValidator
             return false;
         }
 
-        // Domain whitelist (sprint 1: only check if list is non-empty)
-        if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
+        return $this->isAllowedForBuyer($host, $buyer);
+    }
+
+    /**
+     * A dotted host name whose last label starts with a letter, or a literal IP address: numeric or
+     * hexadecimal host forms (2130706433, 0x7f000001) and characters such as "\" are refused.
+     */
+    private function isWellFormedHost(string $host): bool
+    {
+        if ($host === '') {
+            return false;
+        }
+        if (filter_var(trim($host, '[]'), \FILTER_VALIDATE_IP) !== false) {
             return true;
         }
-
-        $allowedDomains = $buyer->getReturnDomains();
-        if ($allowedDomains === []) {
-            return true;
+        if (in_array($host, $this->insecureHosts, true)) {
+            return filter_var($host, \FILTER_VALIDATE_DOMAIN, \FILTER_FLAG_HOSTNAME) !== false;
         }
 
-        return $this->hostMatchesDomains($host, $allowedDomains);
+        return filter_var($host, \FILTER_VALIDATE_DOMAIN, \FILTER_FLAG_HOSTNAME) !== false &&
+            1 === preg_match('/\.[a-z][a-z0-9-]*$/', $host);
+    }
+
+    private function isAllowedForBuyer(string $host, ?BuyerInterface $buyer): bool
+    {
+        // Domain whitelist (made mandatory with US-004)
+        $allowedDomains = $buyer?->getReturnDomains() ?? [];
+
+        return $allowedDomains === [] || $this->hostMatchesDomains($host, $allowedDomains);
     }
 
     private function isBlockedIp(string $host): bool

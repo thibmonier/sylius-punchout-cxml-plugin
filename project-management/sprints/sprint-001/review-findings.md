@@ -51,3 +51,21 @@ Le coordinateur a corrigé ces points (commits `3f34db6`, `ca22189`, `91cf493`),
 | US-026 | `SimulatorRoundTripTest::testTheSimulatorReceivesAValidPunchOutOrderMessage` |
 
 Résultats en local : 68 tests unitaires et 39 tests non unitaires au vert. PHPStan au niveau max, ECS, Rector, `lint:container`, `composer validate --strict` et `doctrine:schema:validate` ne signalent aucune erreur.
+
+## Revue de sécurité indépendante (2026-10-14, commits `3f34db6` et `ca22189`)
+
+Aucun constat critique. Neuf constats, traités en TDD dans `PunchoutHardeningTest`, `ReturnUrlValidatorTest` et `NetPriceCalculatorTest` :
+
+| # | Gravité | Constat | Suite donnée |
+|---|---|---|---|
+| C1 | Majeur | Le checkout Sylius reste possible en session PunchOut, et le transfert pouvait supprimer une commande passée. | Corrigé : US-015 avancée (`CheckoutBlockerListener`). Une commande passée n'est plus servie comme panier ni supprimée. Le panier PunchOut est retiré du stockage de session Sylius (`PunchoutCartStorageListener`), ce qui corrige aussi une fuite trouvée en écrivant le test. |
+| C2 | Mineur | `insecure_return_url_hosts` contourne tous les contrôles. | Corrigé : les domaines de l'acheteur s'appliquent aussi aux hôtes de développement ; l'option est documentée comme réservée au développement. |
+| C3 | Mineur | La CSP imposait `https` dans `form-action`. | Corrigé : le schéma de l'URL de retour est repris. |
+| C4 | Mineur | Hôte mal formé (`\`, IP décimale ou hexadécimale, identifiants dans l'URL) ; liste de domaines facultative. | Hôtes corrigés. Rendre la liste de domaines obligatoire relève d'US-004 (sprint 2). |
+| C5 | Mineur | Désactiver un acheteur ne coupait pas ses sessions. | Corrigé. |
+| C6 | Mineur | Un acheteur sans canal ouvrait une session sans panier PunchOut. | Corrigé : session refusée. |
+| C7 | Mineur | Secret dans le flash et page d'édition non `no-store`. | La page d'édition est déjà en `no-store` (vérifié par un test). Le flash est consommé à l'affichage : risque accepté et documenté. |
+| C8 | Mineur | Régénération du secret non journalisée. | Corrigé : notice avec l'acheteur et l'administrateur, jamais le secret. Le RBAC fin relève de Sylius Plus et n'est pas disponible dans le cœur. |
+| C9 | Mineur | Prix net calculé sur la première unité seulement. | Corrigé : moyenne sur toute la ligne. L'écart d'arrondi au centime reste documenté dans l'ADR-0005. |
+
+Constats renvoyés au sprint 2 : limitation de débit sur `/punchout/cxml` (US-008, important car chaque requête déclenche Argon2id) et domaines de retour obligatoires (US-004).

@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "U bestelt in uw inkoopsysteem: draag uw winkelwagen daarheen over."

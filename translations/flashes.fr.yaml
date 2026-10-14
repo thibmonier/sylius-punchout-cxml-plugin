@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "La commande se passe dans votre outil d'achat : transférez-y votre panier."

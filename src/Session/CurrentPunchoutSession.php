@@ -47,7 +47,11 @@ final readonly class CurrentPunchoutSession
         // The shop firewall keeps the session on logout: the PunchOut session only belongs to the
         // customer of its buyer, never to another customer logged in later in the same browser.
         $user = $this->tokenStorage->getToken()?->getUser();
-        $customer = $punchoutSession->getBuyer()?->getCustomer();
+        $buyer = $punchoutSession->getBuyer();
+        if ($buyer === null || !$buyer->isEnabled()) {
+            return null;
+        }
+        $customer = $buyer->getCustomer();
         if (!$user instanceof ShopUserInterface || $customer === null || $user->getCustomer()?->getId() !== $customer->getId()) {
             return null;
         }

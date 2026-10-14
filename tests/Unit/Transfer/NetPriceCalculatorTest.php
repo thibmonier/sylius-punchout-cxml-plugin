@@ -82,6 +82,28 @@ final class NetPriceCalculatorTest extends TestCase
         self::assertSame('100.00', $net);
     }
 
+    /** Sylius spreads the line tax over the units (1.66 / 1.67 / 1.67): the net price uses the whole line. */
+    #[Test]
+    public function it_averages_the_included_tax_of_all_units(): void
+    {
+        $units = [];
+        foreach ([166, 167, 167] as $tax) {
+            $adjustment = $this->createMock(Adjustment::class);
+            $adjustment->method('getType')->willReturn('tax');
+            $adjustment->method('getAmount')->willReturn($tax);
+            $adjustment->method('isNeutral')->willReturn(true);
+            $unit = $this->createMock(OrderItemUnit::class);
+            $unit->method('getAdjustments')->willReturn(new \Doctrine\Common\Collections\ArrayCollection([$adjustment]));
+            $units[] = $unit;
+        }
+        $item = $this->createMock(OrderItem::class);
+        $item->method('getFullDiscountedUnitPrice')->willReturn(1000);
+        $item->method('getQuantity')->willReturn(3);
+        $item->method('getUnits')->willReturn(new \Doctrine\Common\Collections\ArrayCollection($units));
+
+        self::assertSame('8.33', $this->calculator->calculateUnitNetPrice($item));
+    }
+
     private function createOrderItem(int $fullDiscountedUnitPrice, int $quantity): OrderItem
     {
         $item = $this->createMock(OrderItem::class);

@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "Bestellt wird in Ihrem Beschaffungssystem: Übertragen Sie Ihren Warenkorb dorthin."

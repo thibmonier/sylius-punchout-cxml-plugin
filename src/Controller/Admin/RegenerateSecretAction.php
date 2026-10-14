@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
@@ -23,6 +25,8 @@ final readonly class RegenerateSecretAction
         private SecretIssuer $secretIssuer,
         private CsrfTokenManagerInterface $csrfTokenManager,
         private UrlGeneratorInterface $urlGenerator,
+        private LoggerInterface $logger,
+        private TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -38,6 +42,11 @@ final readonly class RegenerateSecretAction
 
         $this->secretIssuer->issue($buyer);
         $this->entityManager->flush();
+        // Security event: who revoked the secret of which buyer (never the secret itself).
+        $this->logger->notice('PunchOut buyer secret regenerated', [
+            'buyer' => $buyer->getCode(),
+            'admin' => $this->tokenStorage->getToken()?->getUserIdentifier(),
+        ]);
 
         return new RedirectResponse($this->urlGenerator->generate('tmonier_punchout_admin_buyer_update', ['id' => $id]));
     }

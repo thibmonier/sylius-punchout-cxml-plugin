@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "L'ordine si effettua nel tuo sistema di approvvigionamento: trasferiscici il carrello."

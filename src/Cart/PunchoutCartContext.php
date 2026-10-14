@@ -36,8 +36,9 @@ final readonly class PunchoutCartContext implements CartContextInterface
 
         $cart = $session->getCart();
 
-        if (!$cart instanceof OrderInterface) {
-            throw new CartNotFoundException('PunchOut session has no cart assigned yet');
+        // A placed order is never served as the PunchOut cart.
+        if (!$cart instanceof OrderInterface || $cart->getState() !== OrderInterface::STATE_CART) {
+            throw new CartNotFoundException('PunchOut session has no cart');
         }
 
         return $cart;

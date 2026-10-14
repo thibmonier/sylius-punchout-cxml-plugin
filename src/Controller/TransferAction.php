@@ -75,7 +75,11 @@ final readonly class TransferAction
             return $this->plain('Return URL is no longer valid', Response::HTTP_FORBIDDEN);
         }
 
+        // Only a cart is transferred, repriced and deleted: never an order placed in the meantime.
         $cart = $session->getCart();
+        if ($cart instanceof OrderInterface && $cart->getState() !== OrderInterface::STATE_CART) {
+            $cart = null;
+        }
         $lines = [];
         if (!$cancel && $cart instanceof OrderInterface) {
             $this->orderProcessor->process($cart);
@@ -128,7 +132,8 @@ final readonly class TransferAction
         $nonce = base64_encode(random_bytes(16));
         $parts = parse_url($returnUrl);
         $origin = sprintf(
-            'https://%s%s',
+            '%s://%s%s',
+            is_array($parts) ? ($parts['scheme'] ?? 'https') : 'https',
             is_array($parts) ? ($parts['host'] ?? '') : '',
             is_array($parts) && isset($parts['port']) ? ':' . $parts['port'] : '',
         );

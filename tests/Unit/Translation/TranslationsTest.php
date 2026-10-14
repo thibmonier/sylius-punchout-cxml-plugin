@@ -17,7 +17,7 @@ final class TranslationsTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function domainsAndLocales(): iterable
     {
-        foreach (['messages', 'validators'] as $domain) {
+        foreach (['messages', 'validators', 'flashes'] as $domain) {
             foreach (self::LOCALES as $locale) {
                 yield $domain . '.' . $locale => [$domain, $locale];
             }

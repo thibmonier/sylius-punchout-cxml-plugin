@@ -15,6 +15,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\RegenerateSecretAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutCartStorageListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
@@ -132,6 +134,14 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public();
     $services->alias('tmonier_punchout.controller.admin_regenerate_secret', RegenerateSecretAction::class)->public();
+
+    // Shop: no Sylius checkout during a PunchOut session (US-015)
+    $services->set(CheckoutBlockerListener::class)
+        ->tag('kernel.event_listener', ['event' => 'kernel.request', 'priority' => 4]);
+
+    // Shop: the PunchOut cart never becomes the regular session cart
+    $services->set(PunchoutCartStorageListener::class)
+        ->tag('kernel.event_listener', ['event' => 'kernel.response', 'priority' => -10]);
 
     // Shop: PunchOut session banner
     $services->set(PunchoutExtension::class)->tag('twig.extension');

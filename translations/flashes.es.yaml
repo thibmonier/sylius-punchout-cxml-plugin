@@ -1,0 +1,4 @@
+tmonier_punchout:
+    ui:
+        session:
+            checkout_blocked: "El pedido se realiza en su sistema de compras: transfiera allí su carrito."

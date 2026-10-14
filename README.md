@@ -7,9 +7,9 @@ PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
 > **Status: in development, not released.** Available today (sprint 1): cXML `create` PunchOut —
-> setup, session, cart transfer and cancel — buyer admin and buyer simulator. Coming next: hardening
-> (replay protection, rate limiting, iframe, checkout blocking), `edit` / `inspect`, SAP OCI, exchange
-> log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
+> setup, session, cart transfer and cancel, Sylius checkout blocked during the session — buyer admin
+> and buyer simulator. Coming next: replay protection, rate limiting, mandatory return domains,
+> iframe support, `edit` / `inspect`, SAP OCI, exchange log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
@@ -21,6 +21,8 @@ Jaggaer, Oracle…), shop at their own prices and send the cart back to their pu
 3. On the cart page, *Transfer* posts a `PunchOutOrderMessage` (`cXML-base64`, `target="_top"`) back
    to the procurement system: net prices (tax included in the price removed), totals without tax and
    shipping. *Cancel* sends the same message without items. The PunchOut session is then closed.
+   During the session the Sylius checkout leads back to the cart: orders are placed in the
+   procurement system.
 
 The return URL must be HTTPS and match the buyer's allowed domains; it is checked at setup time and
 again before the cart is sent. The setup endpoint never opens a session (no cookie).

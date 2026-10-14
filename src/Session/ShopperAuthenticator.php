@@ -42,6 +42,10 @@ final readonly class ShopperAuthenticator
             throw new \RuntimeException('PunchOut session has no buyer');
         }
 
+        if (!$buyer->isEnabled()) {
+            throw new \RuntimeException('PunchOut buyer is disabled');
+        }
+
         $customer = $buyer->getCustomer();
         if (!$customer instanceof CustomerInterface) {
             throw new \RuntimeException('Buyer has no linked customer');
@@ -56,15 +60,14 @@ final readonly class ShopperAuthenticator
             throw new \RuntimeException('Shop user account is disabled');
         }
 
-        // R7: verify the buyer's channel is active
+        // R7: the buyer's channel exists and is active (its cart is created in it)
         $channel = $buyer->getChannel();
-        if ($channel instanceof ChannelInterface && !$channel->isEnabled()) {
+        if (!$channel instanceof ChannelInterface || !$channel->isEnabled()) {
             throw new \RuntimeException('PunchOut channel is disabled');
         }
 
         // R7: verify the shopper's email when the channel requires it
         if (
-            $channel instanceof ChannelInterface &&
             $channel->isAccountVerificationRequired() &&
             !$shopUser->isVerified()
         ) {
