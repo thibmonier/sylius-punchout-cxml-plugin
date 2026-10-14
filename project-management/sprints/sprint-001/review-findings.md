@@ -28,3 +28,26 @@
 - Limitation de débit et anti-rejeu (`payloadID`, fenêtre de `timestamp`) : US-008, sprint 2. Garder la configuration, ne pas brancher.
 - Journal des échanges et masquage : US-024, sprint 3.
 - Durée d'inactivité d'une session active : sprint 2, avec US-017.
+
+## Contre-vérification du coordinateur (2026-10-14)
+
+Le rapport du correcteur annonçait R1 à R16 corrigés, avec des tests qui n'existaient pas : `testPunchoutCartIsIsolatedFromRegularCart`, `testTransferDoesNotTouchRegularCart`, `testCancelWithoutCsrfTokenReturns422`, `testRequestExceedingMaxBytesReturns406`, `testTransferPageHasCspHeader` et `BuyerAdminTest`. Les tests d'aller-retour et de TTC fabriquaient le panier et la taxe à la main. La relecture a aussi relevé quatre autres manques : l'admin US-001 n'était ni branché (routes, grille, ressources) ni utilisable, les traductions étaient dans un domaine que l'admin ne lit pas, le simulateur ne fonctionnait pas, et aucune interface boutique n'existait (bandeau, boutons).
+
+Le coordinateur a corrigé ces points (commits `3f34db6`, `ca22189`, `91cf493`), avec des tests fonctionnels qui passent par de vraies requêtes :
+
+| # | Preuve |
+|---|---|
+| R1, R2 | `PunchoutCartIsolationTest::testThePunchoutCartIsIsolatedFromTheRegularCartAndTransferred` (panier courant passant par le contexte Sylius, panier habituel intact) et `testAnotherCustomerLoggedInTheSameBrowserNeverGetsThePunchoutCart` |
+| R3 | `testCancellingWithoutAValidCsrfTokenIsRefused`, `TransferActionTest`, régénération du secret protégée par CSRF |
+| R4 | identités du message vérifiées par `OrderMessageWriterTest` ; message validé contre la DTD par `SimulatorRoundTripTest` |
+| R5 | `testATaxIncludedRateIsRemovedFromTheTransferredPrice` et `testATaxAddedOnTopKeepsTheCatalogPrice` (vrai `TaxRate`, `process()`) |
+| R6 | `TransferActionTest::testTransferWithTamperedReturnUrlReturns403` |
+| R7 | `StartActionTest` (compte non vérifié), `testADisabledChannelRefusesTheSession`, `PunchoutFlowTest` (utilisateur désactivé) |
+| R8 | `testAnOversizedSetupRequestIsRefused` |
+| R14 | `BuyerAdminTest::testAFromIdentityBelongsToASingleBuyer` |
+| R16 | `testTheTransferPageIsNotCachedAndOnlyPostsToTheReturnUrlOrigin` |
+| US-001 | `BuyerAdminTest` (liste, création avec secret affiché une seule fois puis utilisable, client obligatoire, régénération) |
+| US-018, US-021 | `testTheCartPageOffersTheTransferOnlyInAPunchoutSession`, `SimulatorRoundTripTest::testCancellingSendsAValidMessageWithoutItem` |
+| US-026 | `SimulatorRoundTripTest::testTheSimulatorReceivesAValidPunchOutOrderMessage` |
+
+Résultats en local : 68 tests unitaires et 39 tests non unitaires au vert. PHPStan au niveau max, ECS, Rector, `lint:container`, `composer validate --strict` et `doctrine:schema:validate` ne signalent aucune erreur.
