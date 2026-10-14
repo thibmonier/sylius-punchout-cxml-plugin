@@ -1,62 +1,54 @@
 # Sylius PunchOut cXML/OCI Plugin
 
-[![Build Status](https://github.com/tmonier/sylius-punchout-cxml-plugin/actions/workflows/build.yaml/badge.svg)](https://github.com/tmonier/sylius-punchout-cxml-plugin/actions)
+[![Build](https://github.com/thibmonier/sylius-punchout-cxml-plugin/actions/workflows/build.yaml/badge.svg)](https://github.com/thibmonier/sylius-punchout-cxml-plugin/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-B2B PunchOut cXML/OCI connector for Sylius 2. Turns your Sylius shop into a **PunchOut supplier** for procurement systems (Ariba, SAP, Coupa, Jaggaer…).
+PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
+Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-- Receives `PunchOutSetupRequest` (create / edit / inspect) on `POST /punchout/cxml`
-- Authenticates buyers, starts a dedicated PunchOut shop session with the linked Sylius customer
-- Returns the cart as a `PunchOutOrderMessage` (`cXML-base64`) to the buyer's return URL
-- OCI 5.0 entry and return (sprint 2)
-- Admin UI: buyers, credentials, session log
+> **Status: in development, not released.** Available today (sprint 1): cXML `create` PunchOut —
+> setup, session, cart transfer and cancel — buyer admin and buyer simulator. Coming next: hardening
+> (replay protection, rate limiting, iframe, checkout blocking), `edit` / `inspect`, SAP OCI, exchange
+> log, GDPR tools. Specification and roadmap: [`project-management/`](project-management/).
 
-> **DTD notice** — The DTD files in `tests/Resources/dtd/1.2.071/` come from [cxml.org](https://www.cxml.org/)
-> and are used only in tests for XML validation. They are subject to the cXML.org licence terms.
+## How it works
+
+1. The procurement system posts a `PunchOutSetupRequest` to `POST /punchout/cxml`. The buyer is
+   authenticated by its `From` / `Sender` identities and shared secret (stored as an Argon2id hash)
+   and gets a single-use start URL (`StartPage`).
+2. The shopper's browser opens the start URL: they are logged in as the **Sylius customer linked to
+   the buyer** (their prices and groups apply) in a dedicated cart, isolated from their regular cart.
+3. On the cart page, *Transfer* posts a `PunchOutOrderMessage` (`cXML-base64`, `target="_top"`) back
+   to the procurement system: net prices (tax included in the price removed), totals without tax and
+   shipping. *Cancel* sends the same message without items. The PunchOut session is then closed.
+
+The return URL must be HTTPS and match the buyer's allowed domains; it is checked at setup time and
+again before the cart is sent. The setup endpoint never opens a session (no cookie).
 
 ## Requirements
 
-- PHP 8.2+
-- Sylius 2.2.9+ or 2.3+
-- Symfony 6.4 / 7.4 / 8.0
-- ext-dom, ext-libxml
+PHP 8.2+, Sylius 2.2.9+ or 2.3+, Symfony 6.4 / 7.4 / 8, ext-dom, ext-libxml. No third-party cXML
+library: documents are read and written with DOM (see [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
 
 ## Installation
-
-### 1. Require the package
 
 ```bash
 composer require tmonier/sylius-punchout-cxml-plugin
 ```
 
-### 2. Register the bundle
-
 ```php
 // config/bundles.php
-return [
-    // …
-    Tmonier\SyliusPunchoutCxmlPlugin\TmonierSyliusPunchoutCxmlPlugin::class => ['all' => true],
-];
+Tmonier\SyliusPunchoutCxmlPlugin\TmonierSyliusPunchoutCxmlPlugin::class => ['all' => true],
 ```
-
-### 3. Import routes
 
 ```yaml
 # config/routes/tmonier_punchout.yaml
-tmonier_punchout:
+tmonier_sylius_punchout_cxml:
     resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes.yaml"
 ```
 
-### 4. Run migrations
-
 ```bash
 php bin/console doctrine:migrations:migrate
-```
-
-### 5. Install assets
-
-```bash
-php bin/console assets:install
 ```
 
 ## Configuration
@@ -64,41 +56,52 @@ php bin/console assets:install
 ```yaml
 # config/packages/tmonier_punchout.yaml
 tmonier_sylius_punchout_cxml:
-    supplier_identity:
+    supplier_identity:               # your identity in the messages sent back (From / Sender)
         domain: 'NetworkId'
         identity: '%env(PUNCHOUT_SUPPLIER_ID)%'
-    start_token_ttl: 300       # seconds
-    replay_window: 900         # seconds
-    max_request_bytes: 262144  # 256 KiB
-    retention_days: 90
-    log_bodies: false
+    start_token_ttl: 300             # seconds
+    max_request_bytes: 262144        # 256 KiB
     keep_transferred_carts: false
-    rate_limits:
-        setup:
-            limit: 30
-            interval: '1 minute'
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
 
-## Testing
+## Setting up a buyer
+
+In the admin, **PunchOut buyers > Create**: code, name, channel, the Sylius customer the sessions log
+in as (mandatory), the buyer's `From` and `Sender` identities and the allowed return domains. The
+shared secret is generated on creation and **shown once**; *Regenerate the secret* revokes it and
+shows a new one. Give the procurement system your setup URL (`https://<shop>/punchout/cxml`), your
+supplier identity and the secret.
+
+## Development
 
 ```bash
+docker compose up -d mysql mailhog
 vendor/bin/phpunit --testsuite unit
-vendor/bin/phpunit --testsuite non-unit   # needs DB + fixtures
-vendor/bin/phpstan analyse --memory-limit=1G
+vendor/bin/phpunit --testsuite non-unit   # needs the test database and the Sylius fixtures
+vendor/bin/phpstan analyse
 vendor/bin/ecs check
 vendor/bin/rector process --dry-run
-vendor/bin/console lint:container
 ```
 
-Local dev server (port 8101):
+### Buyer simulator (test application only)
 
 ```bash
 symfony server:start -d --port=8101 --no-tls
-# Admin: http://localhost:8101/admin  (sylius / sylius)
-# Shop:  http://localhost:8101       (shop@example.com / sylius)
-# Simulator: http://localhost:8101/simulator/cxml
 ```
+
+1. Admin (`http://localhost:8101/admin`, `sylius` / `sylius`) > PunchOut buyers > *Demo PunchOut
+   Buyer* > *Regenerate the secret*, copy it.
+2. Open `http://localhost:8101/simulator/cxml`, paste the secret, send the setup request and follow
+   the start link: you shop as `shop@example.com`.
+3. On the cart page, click *Transfer*: the simulator shows the `PunchOutOrderMessage` it received and
+   its validation against the cXML 1.2.071 DTD.
+
+The simulator receives the cart on `http://localhost`, allowed by the development-only option
+`insecure_return_url_hosts` of the test application (keep it empty in production).
+
+The cXML DTD in `tests/Resources/dtd/1.2.071/` comes from [cxml.org](https://www.cxml.org/) and is
+only used by the tests, under the cXML.org licence terms.
 
 ## License
 

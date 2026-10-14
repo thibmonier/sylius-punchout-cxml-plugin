@@ -26,8 +26,8 @@ vendor/bin/console lint:container
 Local env overrides (gitignored): `compose.override.yml` (MySQL on 3334, MailHog on 8053/1053),
 `tests/TestApplication/.env.local` (DATABASE_URL + MAILER_DSN) and `.env.test.local` (DATABASE_URL).
 Databases: `tmonier_sylius_punchout_cxml_dev` / `_test`, both loaded with the default fixture suite
-plus the `tmonier_punchout_demo` demo fixture (a demo buyer whose secret is generated at install time
-and printed in the command output).
+plus the `tmonier_punchout_demo` demo fixture (a demo buyer linked to `shop@example.com`, without
+secret: generate it in the admin with "Regenerate the secret", it is shown once).
 
 Dev server: `symfony server:start -d --port=8101 --no-tls`
 - Admin `sylius` / `sylius`
@@ -47,10 +47,13 @@ Every document emitted by the plugin is validated against this DTD in tests.
 - `src/Session/` — PunchoutSession entity, start-token issuer/consumer (SHA-256, atomic), shopper authenticator
 - `src/Cart/` — PunchoutCartContext (priority 0), PunchoutCartFactory
 - `src/Transfer/` — TransferLine DTO, NetPriceCalculator (net price, tax-inclusive channel), OrderMessageWriter
-- `src/Controller/` — CxmlEndpointAction (no Set-Cookie), StartAction, TransferAction, CancelAction
+- `src/Controller/` — CxmlEndpointAction (no Set-Cookie), StartAction, TransferAction (transfer and cancel = empty message), Admin/RegenerateSecretAction
+- `src/Form/Type/Admin/BuyerType` — admin form (Default validation group: the resource form would only validate `sylius`)
+- `src/Buyer/SecretIssuer` + `EventListener/BuyerSecretListener` — secret generated on creation, shown once (flash `tmonier_punchout_secret`)
 - `src/Log/` — MessageLog entity, masker
 - `src/Migrations/` — Schema API (MySQL + MariaDB + PostgreSQL)
-- `tests/TestApplication/` — Simulator controller + templates (never loaded in production)
+- `tests/TestApplication/` — Simulator (setup sent as an in-process sub-request, reception page with DTD validation) and test-only cart endpoints going through the Sylius cart context (never loaded in production)
+- Functional tests drive real requests: `PunchoutRoundTripTrait` (setup → start → cart → transfer); create the products, prices, tax rates they need and take the channel out of fixture promotions (`TestCatalog`).
 
 ## Rules
 
