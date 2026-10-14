@@ -6,7 +6,7 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 /**
  * Wraps each test in a database transaction that is rolled back on tearDown,
@@ -39,8 +39,8 @@ trait DatabaseTransactionTrait
         // The rate limiters persist between tests: start each test with a fresh budget.
         $limiter = static::getContainer()->get('tmonier_punchout.test.setup_limiter');
         $failures = static::getContainer()->get('tmonier_punchout.test.authentication_failure_limiter');
-        self::assertInstanceOf(RateLimiterFactoryInterface::class, $limiter);
-        self::assertInstanceOf(RateLimiterFactoryInterface::class, $failures);
+        self::assertInstanceOf(RateLimiterFactory::class, $limiter);
+        self::assertInstanceOf(RateLimiterFactory::class, $failures);
         foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
             $limiter->create($ip)->reset();
         }
