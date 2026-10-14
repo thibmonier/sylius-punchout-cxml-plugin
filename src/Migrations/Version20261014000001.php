@@ -112,8 +112,8 @@ final class Version20261014000001 extends AbstractMigration
         $session->addColumn('extrinsics', Types::JSON, ['notnull' => true]);
         $session->addColumn('items_out', Types::JSON, ['notnull' => true]);
         // R4: preserve buyer From identities for cXML PunchOutOrderMessage header
-        $session->addColumn('from_domain', Types::STRING, ['length' => 255, 'notnull' => true, 'default' => '']);
-        $session->addColumn('from_identity', Types::STRING, ['length' => 255, 'notnull' => true, 'default' => '']);
+        $session->addColumn('from_domain', Types::STRING, ['length' => 255, 'notnull' => true]);
+        $session->addColumn('from_identity', Types::STRING, ['length' => 255, 'notnull' => true]);
         $session->addColumn('created_at', Types::DATETIME_IMMUTABLE, ['notnull' => true]);
         $session->addColumn('updated_at', Types::DATETIME_IMMUTABLE, ['notnull' => true]);
         $session->setPrimaryKey(['id']);
