@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping
+    xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                        https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession"
+            table="tmonier_punchout_session">
+
+        <id name="id" type="integer" column="id">
+            <generator strategy="AUTO"/>
+        </id>
+
+        <field name="operation" type="string" length="20" nullable="false"/>
+        <field name="buyerCookie" type="string" length="1024" nullable="false" column="buyer_cookie"/>
+        <field name="returnUrl" type="string" length="2048" nullable="false" column="return_url"/>
+        <field name="startTokenHash" type="string" length="64" nullable="true" column="start_token_hash"/>
+        <field name="startTokenExpiry" type="datetime_immutable" nullable="true" column="start_token_expiry"/>
+        <field name="status" type="string" length="20" nullable="false"/>
+        <field name="extrinsics" type="json" nullable="false"/>
+        <field name="itemsOut" type="json" nullable="false" column="items_out"/>
+        <field name="createdAt" type="datetime_immutable" nullable="false" column="created_at"/>
+        <field name="updatedAt" type="datetime_immutable" nullable="false" column="updated_at"/>
+
+        <many-to-one field="buyer"
+                     target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer"
+                     fetch="EAGER">
+            <join-column name="buyer_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <indexes>
+            <index columns="start_token_hash,status" name="idx_punchout_session_token_status"/>
+            <index columns="status,created_at" name="idx_punchout_session_status_created"/>
+        </indexes>
+
+    </entity>
+
+</doctrine-mapping>

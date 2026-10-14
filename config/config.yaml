@@ -1,0 +1,7 @@
+imports:
+    - { resource: "@TmonierSyliusPunchoutCxmlPlugin/config/app/resources.yaml" }
+
+tmonier_sylius_punchout_cxml:
+    supplier_identity:
+        domain: '%env(PUNCHOUT_SUPPLIER_DOMAIN)%'
+        identity: '%env(PUNCHOUT_SUPPLIER_IDENTITY)%'

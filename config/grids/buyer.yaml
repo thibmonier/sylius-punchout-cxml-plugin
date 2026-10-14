@@ -1,0 +1,49 @@
+sylius_grid:
+    grids:
+        tmonier_punchout_admin_buyer:
+            driver:
+                name: doctrine/orm
+                options:
+                    class: "%tmonier_punchout.model.buyer.class%"
+            sorting:
+                name: asc
+            fields:
+                name:
+                    type: string
+                    label: tmonier_punchout.admin.buyer.fields.name
+                    sortable: ~
+                protocol:
+                    type: string
+                    label: tmonier_punchout.admin.buyer.fields.protocol
+                enabled:
+                    type: twig
+                    label: tmonier_punchout.admin.buyer.fields.enabled
+                    options:
+                        template: "@SyliusUi/grid/field/enabled.html.twig"
+                createdAt:
+                    type: datetime
+                    label: tmonier_punchout.admin.buyer.fields.created_at
+                    sortable: ~
+                    options:
+                        format: 'Y-m-d H:i'
+            filters:
+                search:
+                    type: string
+                    label: sylius.ui.search
+                    options:
+                        fields: [name]
+                enabled:
+                    type: boolean
+                    label: tmonier_punchout.admin.buyer.fields.enabled
+            actions:
+                main:
+                    create:
+                        type: create
+                        label: tmonier_punchout.admin.buyer.create
+                item:
+                    update:
+                        type: update
+                        label: tmonier_punchout.admin.buyer.actions.edit
+                    delete:
+                        type: delete
+                        label: tmonier_punchout.admin.buyer.actions.delete

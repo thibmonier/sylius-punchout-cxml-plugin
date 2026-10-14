@@ -1,0 +1,48 @@
+parameters:
+    level: max
+    reportUnmatchedIgnoredErrors: false
+    paths:
+        - src
+        - tests/Functional
+        - tests/Unit
+
+    excludePaths:
+        # Makes PHPStan crash
+        - 'src/DependencyInjection/Configuration.php'
+
+        # Test dependencies
+        - 'tests/TestApplication/src/**.php'
+
+    ignoreErrors:
+        - '/Parameter #1 \$configuration of method Symfony\\Component\\DependencyInjection\\Extension\\Extension::processConfiguration\(\) expects Symfony\\Component\\Config\\Definition\\ConfigurationInterface, Symfony\\Component\\Config\\Definition\\ConfigurationInterface\|null given\./'
+        -
+            identifier: missingType.iterableValue
+        -
+            identifier: missingType.generics
+        # Doctrine sets the $id via reflection; PHPStan cannot see that.
+        -
+            identifier: property.unusedType
+            path: src/Buyer/Buyer.php
+        -
+            identifier: property.unusedType
+            path: src/Buyer/BuyerCredential.php
+        -
+            identifier: property.unusedType
+            path: src/Buyer/BuyerIdentity.php
+        -
+            identifier: property.unusedType
+            path: src/Session/PunchoutSession.php
+        -
+            identifier: property.unusedType
+            path: src/Log/MessageLog.php
+        # Doctrine Collection PHPDoc false positives: contains()/filter()->toArray() are not always-false/empty
+        # PHPStan loses the BuyerCredential type through Collection<int,BuyerCredential>::filter() generics
+        -
+            identifier: booleanNot.alwaysTrue
+            path: src/Buyer/Buyer.php
+        -
+            identifier: arrayValues.empty
+            path: src/Buyer/Buyer.php
+        -
+            identifier: return.type
+            path: src/Buyer/Buyer.php

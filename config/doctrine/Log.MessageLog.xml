@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping
+    xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                        https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog"
+            table="tmonier_punchout_message_log">
+
+        <id name="id" type="integer" column="id">
+            <generator strategy="AUTO"/>
+        </id>
+
+        <field name="direction" type="string" length="3" nullable="false"/>
+        <field name="protocol" type="string" length="10" nullable="false"/>
+        <field name="messageType" type="string" length="100" nullable="false" column="message_type"/>
+        <field name="payloadId" type="string" length="255" nullable="false" column="payload_id"/>
+        <field name="status" type="integer" nullable="false"/>
+        <field name="bodyHash" type="string" length="64" nullable="true" column="body_hash"/>
+        <field name="maskedBody" type="text" nullable="true" column="masked_body"/>
+        <field name="createdAt" type="datetime_immutable" nullable="false" column="created_at"/>
+
+        <many-to-one field="buyer"
+                     target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer">
+            <join-column name="buyer_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <many-to-one field="session"
+                     target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession">
+            <join-column name="session_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+
+        <indexes>
+            <index columns="created_at" name="idx_message_log_created_at"/>
+            <index columns="buyer_id,created_at" name="idx_message_log_buyer_date"/>
+        </indexes>
+
+    </entity>
+
+</doctrine-mapping>

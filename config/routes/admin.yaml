@@ -1,0 +1,13 @@
+tmonier_punchout_admin_buyer:
+    resource: |
+        alias: tmonier_punchout.buyer
+        section: admin
+        redirect: index
+        templates: "@SyliusAdmin/Crud"
+        except: ["show"]
+        vars:
+            all:
+                subheader: tmonier_punchout.ui.menu.buyers
+            index:
+                icon: building
+    type: sylius.resource

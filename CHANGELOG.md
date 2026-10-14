@@ -1,0 +1,16 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- PunchOut buyer resource with admin grid, form, and 7-language translations (US-001)
+- cXML endpoint `POST /punchout/cxml` with `SafeXmlLoader` (XXE protection), setup request reader, setup response writer (US-007)
+- Single-use start token (SHA-256, 5 min TTL, atomic consumption), session start action, shopper authenticator (US-013)
+- Transfer action with `OrderMessageWriter`, `NetPriceCalculator` (net price, tax-inclusive channel support), DTD-validated output (US-018)
+- Buyer simulator in TestApplication with cXML round-trip and DTD validation (US-026)

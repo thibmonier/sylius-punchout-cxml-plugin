@@ -1,0 +1,25 @@
+tmonier_punchout_cxml_endpoint:
+    path: /punchout/cxml
+    controller: tmonier_punchout.controller.cxml_endpoint
+    methods: [POST]
+    defaults:
+        _format: xml
+        _sylius:
+            template: ~
+
+tmonier_punchout_start:
+    path: /punchout/start/{token}
+    controller: tmonier_punchout.controller.start
+    methods: [GET, HEAD]
+    requirements:
+        token: '[A-Za-z0-9_-]{43,}'
+
+tmonier_punchout_transfer:
+    path: /punchout/transfer
+    controller: tmonier_punchout.controller.transfer
+    methods: [POST]
+
+tmonier_punchout_cancel:
+    path: /punchout/cancel
+    controller: tmonier_punchout.controller.cancel
+    methods: [POST]

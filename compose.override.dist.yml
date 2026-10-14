@@ -1,0 +1,64 @@
+services:
+    php:
+        image: ghcr.io/sylius/sylius-php:8.4-fixuid-xdebug-alpine
+        user: ${DOCKER_USER:-1000:1000}
+        depends_on:
+            mysql:
+                condition: service_healthy
+        environment:
+            APP_ENV: ${ENV:-prod}
+            APP_SECRET: EDITME
+            DATABASE_URL: "mysql://root@mysql:3306/sylius_%kernel.environment%"
+            MAILER_DSN: smtp://mailhog:1025
+            MESSENGER_TRANSPORT_DSN: doctrine://default
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN: doctrine://default
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_FAILED_DSN: doctrine://default?queue_name=main_failed
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_DSN: doctrine://default?queue_name=catalog_promotion_removal
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_FAILED_DSN: doctrine://default?queue_name=catalog_promotion_removal_failed
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN: sync://
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_FAILED_DSN: sync://
+            PHP_DATE_TIMEZONE: ${PHP_DATE_TIMEZONE:-UTC}
+            XDEBUG_MODE: debug
+            XDEBUG_CONFIG: >-
+                client_host=host.docker.internal
+                client_port=9003
+            PHP_IDE_CONFIG: serverName=sylius
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        volumes:
+          - .:/srv/sylius:rw,cached
+          - ./public:/srv/sylius/public:rw,delegated
+          - public-media:/srv/sylius/public/media:rw
+    mysql:
+        volumes:
+            - mysql-data:/var/lib/mysql:rw
+        ports:
+            - "3334:3306"
+    nginx:
+        environment:
+            WORKING_DIR: /srv/sylius/vendor/sylius/test-application
+        volumes:
+            - .:/srv/sylius:ro
+        ports:
+            - "8101:80"
+    nodejs:
+        image: node:22-alpine
+        user: ${DOCKER_USER:-1000:1000}
+        working_dir: /srv/sylius
+        entrypoint: [ "/bin/sh","-c" ]
+        command:
+            - |
+                cd vendor/sylius/test-application
+                yarn install
+                yarn build
+        volumes:
+            - .:/srv/sylius:rw,cached
+            - ./public:/srv/sylius/public:rw,delegated
+    mailhog:
+        ports:
+            - "8053:8025"
+            - "1053:1025"
+
+volumes:
+    mysql-data:
+    public-media:
