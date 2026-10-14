@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Session;
 
+use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,10 +15,12 @@ use Symfony\Component\HttpFoundation\Request;
  * Performs manual pre-auth checks before calling Security::login():
  * - customer exists and has an associated shop user
  * - shop user is enabled
- * - shop user's channel is active
+ * - channel is enabled (R7)
+ * - shop user has verified their email when the channel requires it (R7)
  *
- * This is necessary because Sylius 2.3 uses a permissive pre-auth strategy
- * (UserChecker is relaxed; we must check manually).
+ * R7 fix: session.migrate(true) is called BEFORE security.login() to
+ * prevent session fixation (the new session ID is established first,
+ * then the user is associated with it).
  */
 final readonly class ShopperAuthenticator
 {
@@ -53,11 +56,29 @@ final readonly class ShopperAuthenticator
             throw new \RuntimeException('Shop user account is disabled');
         }
 
+        // R7: verify the buyer's channel is active
+        $channel = $buyer->getChannel();
+        if ($channel instanceof ChannelInterface && !$channel->isEnabled()) {
+            throw new \RuntimeException('PunchOut channel is disabled');
+        }
+
+        // R7: verify the shopper's email when the channel requires it
+        if (
+            $channel instanceof ChannelInterface
+            && method_exists($channel, 'isAccountVerificationRequired')
+            && $channel->isAccountVerificationRequired()
+            && !$shopUser->isVerified()
+        ) {
+            throw new \RuntimeException('Shop user account is not verified');
+        }
+
+        // R7 fix: regenerate the session ID BEFORE login to prevent session fixation.
+        // Calling migrate(true) first destroys the old (potentially logged-in) session
+        // and issues a new session ID. The user is then bound to this fresh session.
+        $request->getSession()->migrate(true);
+
         // Log the user into the shop firewall
         $this->security->login($shopUser, 'form_login', 'shop');
-
-        // Regenerate the session ID to prevent session fixation
-        $request->getSession()->migrate(true);
 
         // Store the PunchOut session id in the Symfony session
         $this->currentSession->set($session);
