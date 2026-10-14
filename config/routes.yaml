@@ -23,6 +23,13 @@ tmonier_punchout_start:
     requirements:
         token: '[A-Za-z0-9_-]{43,}'
 
+tmonier_punchout_oci_entry:
+    path: /punchout/oci/{buyerCode}
+    controller: tmonier_punchout.controller.oci_entry
+    methods: [GET, POST]
+    requirements:
+        buyerCode: '[a-z0-9_-]{1,64}'
+
 tmonier_punchout_transfer:
     path: /punchout/transfer
     controller: tmonier_punchout.controller.transfer

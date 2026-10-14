@@ -16,6 +16,7 @@
         <field name="name" type="string" length="255" nullable="false"/>
         <field name="protocol" type="string" length="10" nullable="false"/>
         <field name="enabled" type="boolean" nullable="false"/>
+        <field name="ociUsername" type="string" length="255" nullable="true" column="oci_username"/>
         <field name="companyId" type="string" length="255" nullable="true" column="company_id"/>
         <field name="returnDomains" type="json" nullable="false" column="return_domains"/>
         <field name="iframeOrigins" type="json" nullable="false" column="iframe_origins"/>

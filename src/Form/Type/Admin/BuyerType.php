@@ -76,6 +76,12 @@ final class BuyerType extends AbstractResourceType
                 'label' => 'tmonier_punchout.form.buyer.protocol.label',
                 'choices' => ['tmonier_punchout.form.buyer.protocol.cxml' => 'cxml', 'tmonier_punchout.form.buyer.protocol.oci' => 'oci'],
             ])
+            ->add('ociUsername', TextType::class, [
+                'label' => 'tmonier_punchout.form.buyer.oci_username',
+                'help' => 'tmonier_punchout.form.buyer.oci_username_help',
+                'required' => false,
+                'constraints' => [new Length(max: 255), new Regex(pattern: '/^\S+$/', message: 'tmonier_punchout.buyer.oci_username.format')],
+            ])
             ->add('channel', ChannelChoiceType::class, [
                 'label' => 'sylius.ui.channel',
                 'constraints' => [new NotNull(message: 'tmonier_punchout.buyer.channel.not_blank')],
@@ -122,9 +128,11 @@ final class BuyerType extends AbstractResourceType
                 'label' => 'tmonier_punchout.form.buyer.' . $field,
                 'help' => 'tmonier_punchout.form.buyer.identities_format',
                 'attr' => ['rows' => 2],
-                'constraints' => [new NotBlank()],
+                'required' => false,
             ]);
+            $builder->get($field)->addEventListener(FormEvents::POST_SUBMIT, $this->requireForProtocol('cxml'));
         }
+        $builder->get('ociUsername')->addEventListener(FormEvents::POST_SUBMIT, $this->requireForProtocol('oci'));
 
         $builder->get('customer')->addModelTransformer(new CallbackTransformer(
             static fn (?CustomerInterface $customer): ?string => $customer?->getEmail(),
@@ -155,6 +163,21 @@ final class BuyerType extends AbstractResourceType
 
         $builder->addEventListener(FormEvents::POST_SET_DATA, $this->fillIdentities(...));
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->applyIdentities(...));
+    }
+
+    /**
+     * A cXML buyer needs its identities, an OCI buyer its username (its identities are optional): the
+     * field is checked against the protocol submitted before it.
+     */
+    private function requireForProtocol(string $protocol): \Closure
+    {
+        return function (FormEvent $event) use ($protocol): void {
+            $field = $event->getForm();
+            $data = $field->getData();
+            if ($field->getParent()?->get('protocol')->getData() === $protocol && (!is_string($data) || trim($data) === '')) {
+                $field->addError(new FormError($this->translator->trans('This value should not be blank.', [], 'validators')));
+            }
+        };
     }
 
     public function getBlockPrefix(): string

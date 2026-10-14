@@ -43,22 +43,29 @@ final readonly class MessageLogger
         ?PunchoutSessionInterface $session = null,
         bool $authenticated = true,
         array $context = [],
+        string $protocol = MessageLog::PROTOCOL_CXML,
     ): void {
         $this->connection->insert(self::TABLE, [
             'buyer_id' => $buyer?->getId(),
             'session_id' => $session?->getId(),
             'direction' => $direction,
-            'protocol' => MessageLog::PROTOCOL_CXML,
+            'protocol' => $protocol,
             'message_type' => mb_substr($messageType, 0, 100),
             'payload_id' => mb_substr($payloadId, 0, 255),
             'status' => $status,
             'body_hash' => hash('sha256', substr($body, 0, $this->maxBodyBytes)),
-            'masked_body' => $this->logBodies && $authenticated && strlen($body) <= $this->maxBodyBytes ? $this->masker->mask($body) : null,
+            'masked_body' => $this->logBodies && $authenticated && strlen($body) <= $this->maxBodyBytes ? $this->masked($body, $protocol) : null,
             'created_at' => new \DateTimeImmutable(),
         ], ['created_at' => Types::DATETIME_IMMUTABLE]);
 
         if ($status >= 400) {
             $this->logger->warning('PunchOut request refused', ['type' => $messageType, 'status' => $status, 'buyer' => $buyer?->getCode()] + $context);
         }
+    }
+
+    /** OCI bodies are form parameters, already without the password: only e-mail addresses are masked. */
+    private function masked(string $body, string $protocol): string
+    {
+        return $protocol === MessageLog::PROTOCOL_OCI ? $this->masker->maskText($body) : $this->masker->mask($body);
     }
 }

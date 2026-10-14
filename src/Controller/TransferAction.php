@@ -20,6 +20,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
+use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciFormWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
@@ -33,7 +34,8 @@ use Twig\Environment as TwigEnvironment;
  *
  * Sends the PunchOut cart back to the procurement system as a cXML PunchOutOrderMessage posted by
  * the shopper's browser (self-submitting form, `target="_top"` to leave the buyer's iframe), then
- * closes the PunchOut session. Cancelling sends the same message without any item.
+ * closes the PunchOut session. Cancelling sends the same message without any item. An OCI session
+ * (US-020) gets the OCI 5.0 NEW_ITEM fields posted to SAP's HOOK_URL instead.
  */
 final readonly class TransferAction
 {
@@ -55,6 +57,7 @@ final readonly class TransferAction
         private CartStorageInterface $cartStorage,
         private Security $security,
         private MessageLogger $messageLogger,
+        private OciFormWriter $ociFormWriter,
         private bool $keepTransferredCarts = false,
         private string $supplierDomain = 'NetworkId',
         private string $supplierIdentity = 'supplier',
@@ -95,6 +98,29 @@ final readonly class TransferAction
         }
 
         $payloadId = $this->payloadIdGenerator->generate();
+        $status = $cancel ? PunchoutSession::STATUS_CANCELLED : PunchoutSession::STATUS_TRANSFERRED;
+        $ociContext = $session->getOciContext();
+        if ($ociContext !== null) {
+            $fields = $this->ociFormWriter->fields($lines, $ociContext);
+            $this->messageLogger->log(
+                MessageLog::DIRECTION_OUT,
+                'OciTransfer',
+                $payloadId,
+                200,
+                implode("\n", array_map(static fn (array $field): string => $field[0] . '=' . $field[1], $fields)),
+                $session->getBuyer(),
+                $session,
+                protocol: MessageLog::PROTOCOL_OCI,
+            );
+            $this->close($session, $cart, $status);
+
+            return $this->postToReturnUrl($returnUrl, 'oci_transfer', [
+                'fields' => $fields,
+                'target' => $this->ociFormWriter->target($ociContext),
+                'charset' => $this->ociFormWriter->charset($ociContext),
+            ]);
+        }
+
         $xml = $this->orderMessageWriter->write(
             $lines,
             $this->netPriceCalculator->computeTotal($lines),
@@ -110,9 +136,9 @@ final readonly class TransferAction
         );
 
         $this->messageLogger->log(MessageLog::DIRECTION_OUT, 'PunchOutOrderMessage', $payloadId, 200, $xml, $session->getBuyer(), $session);
-        $this->close($session, $cart, $cancel ? PunchoutSession::STATUS_CANCELLED : PunchoutSession::STATUS_TRANSFERRED);
+        $this->close($session, $cart, $status);
 
-        return $this->postToReturnUrl($returnUrl, base64_encode($xml));
+        return $this->postToReturnUrl($returnUrl, 'transfer', ['xmlBase64' => base64_encode($xml)]);
     }
 
     /** Language of the descriptions and, when the buyer wants them (US-019), tax and shipping without tax. */
@@ -164,7 +190,8 @@ final readonly class TransferAction
         $this->security->logout(false);
     }
 
-    private function postToReturnUrl(string $returnUrl, string $xmlBase64): Response
+    /** @param array<string, mixed> $parameters */
+    private function postToReturnUrl(string $returnUrl, string $template, array $parameters): Response
     {
         $nonce = base64_encode(random_bytes(16));
         $parts = parse_url($returnUrl);
@@ -175,11 +202,10 @@ final readonly class TransferAction
             is_array($parts) && isset($parts['port']) ? ':' . $parts['port'] : '',
         );
 
-        $response = new Response($this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/transfer.html.twig', [
+        $response = new Response($this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/' . $template . '.html.twig', [
             'returnUrl' => $returnUrl,
-            'xmlBase64' => $xmlBase64,
             'nonce' => $nonce,
-        ]), Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
+        ] + $parameters), Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
         $response->headers->set('Cache-Control', 'no-store');
         $response->headers->set('Referrer-Policy', 'no-referrer');
         $response->headers->set('Content-Security-Policy', sprintf(

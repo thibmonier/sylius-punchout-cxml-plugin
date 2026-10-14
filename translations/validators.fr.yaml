@@ -15,6 +15,8 @@ tmonier_punchout:
             invalid: 'Domaine invalide : utilisez ariba.com ou *.ariba.com.'
         iframe_origins:
             invalid: 'Origine invalide : utilisez https://hôte (ex. https://s1.ariba.com).'
+        oci_username:
+            format: "L'identifiant OCI ne peut pas contenir d'espace."
     classification:
         unspsc: 'Le code UNSPSC comporte 8 chiffres.'
         unit: "L'unité est un code en majuscules de 8 lettres ou chiffres au plus (ex. EA)."

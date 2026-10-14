@@ -54,6 +54,14 @@ class PunchoutSession implements PunchoutSessionInterface
     /** R4: buyer's From identity (from cXML Header/From/Credential) */
     private string $fromIdentity = '';
 
+    /**
+     * OCI session (US-012): the return target, the charset and the `~` fields sent by SAP, sent back with
+     * the cart. Null for a cXML session.
+     *
+     * @var array<string, string>|null
+     */
+    private ?array $ociContext = null;
+
     private \DateTimeImmutable $createdAt;
 
     private \DateTimeImmutable $updatedAt;
@@ -198,6 +206,21 @@ class PunchoutSession implements PunchoutSessionInterface
     public function setFromIdentity(string $fromIdentity): void
     {
         $this->fromIdentity = $fromIdentity;
+    }
+
+    public function getOciContext(): ?array
+    {
+        return $this->ociContext;
+    }
+
+    public function setOciContext(?array $ociContext): void
+    {
+        $this->ociContext = $ociContext;
+    }
+
+    public function isOci(): bool
+    {
+        return $this->ociContext !== null;
     }
 
     public function isPending(): bool

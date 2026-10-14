@@ -51,6 +51,14 @@ interface PunchoutSessionInterface extends ResourceInterface
     /** @param list<array<string, mixed>> $itemsOut */
     public function setItemsOut(array $itemsOut): void;
 
+    /** @return array<string, string>|null */
+    public function getOciContext(): ?array;
+
+    /** @param array<string, string>|null $ociContext */
+    public function setOciContext(?array $ociContext): void;
+
+    public function isOci(): bool;
+
     public function getCreatedAt(): \DateTimeImmutable;
 
     public function getUpdatedAt(): \DateTimeImmutable;

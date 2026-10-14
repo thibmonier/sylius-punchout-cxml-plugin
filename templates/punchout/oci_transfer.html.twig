@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transferring cart…</title>
+</head>
+<body>
+<form id="punchout-transfer-form" method="post" action="{{ returnUrl }}" target="{{ target }}" accept-charset="{{ charset }}">
+    {% for field in fields %}
+        <input type="hidden" name="{{ field[0] }}" value="{{ field[1] }}">
+    {% endfor %}
+    <button type="submit">Transfer to procurement system</button>
+</form>
+<script nonce="{{ nonce }}">document.getElementById('punchout-transfer-form').submit();</script>
+</body>
+</html>

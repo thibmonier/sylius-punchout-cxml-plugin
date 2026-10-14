@@ -57,6 +57,8 @@ tmonier_punchout:
             include_shipping: 'Send the shipping of the cart'
             default_unit: 'Default unit of measure'
             default_unspsc: 'Default UNSPSC code'
+            oci_username: 'OCI username'
+            oci_username_help: 'OCI buyers only: the USERNAME sent by SAP. The PASSWORD is the buyer secret. Entry URL: /punchout/oci/<code>.'
         classification:
             unspsc: 'UNSPSC code (PunchOut)'
             unspsc_help: '8 digits, e.g. 56101504. Products inherit the code of their main taxon or its parents.'

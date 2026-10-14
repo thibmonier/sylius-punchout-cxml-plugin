@@ -41,8 +41,11 @@ trait DatabaseTransactionTrait
         $failures = static::getContainer()->get('tmonier_punchout.test.authentication_failure_limiter');
         self::assertInstanceOf(RateLimiterFactory::class, $limiter);
         self::assertInstanceOf(RateLimiterFactory::class, $failures);
+        $ociEntry = static::getContainer()->get('tmonier_punchout.test.oci_entry_limiter');
+        self::assertInstanceOf(RateLimiterFactory::class, $ociEntry);
         foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
             $limiter->create($ip)->reset();
+            $ociEntry->create($ip)->reset();
         }
         $identityFailures = static::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
         self::assertInstanceOf(RateLimiterFactory::class, $identityFailures);

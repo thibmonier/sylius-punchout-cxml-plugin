@@ -239,6 +239,37 @@ final readonly class TestCatalog
     }
 
     /**
+     * Creates an OCI buyer (SAP) linked to the default shop customer, with a username and a password
+     * generated at runtime.
+     *
+     * @param list<string> $returnDomains
+     *
+     * @return array{buyer: Buyer, username: string, password: string}
+     */
+    public function createOciBuyer(array $returnDomains = ['sap.bigcorp.example']): array
+    {
+        ['buyer' => $buyer] = $this->createBuyerWithCustomer(
+            fromIdentity: 'oci-' . bin2hex(random_bytes(4)) . '@example.com',
+            senderIdentity: 'oci-system-' . bin2hex(random_bytes(4)) . '@example.com',
+            returnDomains: $returnDomains,
+        );
+        $em = $this->container->get(EntityManagerInterface::class);
+        $password = $this->container->get(CredentialGenerator::class)->generate();
+        $username = 'sap-' . bin2hex(random_bytes(4));
+        foreach ($buyer->getActiveCredentials() as $credential) {
+            $credential->revoke();
+        }
+        $credential = new BuyerCredential();
+        $credential->setPasswordHash($this->container->get(CredentialHasher::class)->hash($password));
+        $buyer->addCredential($credential);
+        $buyer->setProtocol('oci');
+        $buyer->setOciUsername($username);
+        $em->flush();
+
+        return ['buyer' => $buyer, 'username' => $username, 'password' => $password];
+    }
+
+    /**
      * Takes the channel out of every cart promotion (random fixtures), so prices are the catalog prices.
      * Rolled back with the test transaction.
      */

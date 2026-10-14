@@ -6,11 +6,11 @@
 PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-> **Status: in development, not released.** Available today (sprints 1 to 3): cXML PunchOut
-> `create`, `edit` and `inspect`, `ProfileRequest`, cart transfer and cancel, UNSPSC codes and units,
-> optional tax and shipping, exchange log — with replay protection, rate limiting and iframe support —
-> buyer admin and buyer simulator. Coming next: SAP OCI, GDPR tools (purge, erasure), diagnostic
-> command. Specification and roadmap: [`project-management/`](project-management/).
+> **Status: in development, not released.** Available today: cXML PunchOut `create`, `edit` and
+> `inspect`, `ProfileRequest`, SAP OCI 5.0 entry and return, cart transfer and cancel, UNSPSC codes
+> and units, optional tax and shipping, exchange log — with replay protection, rate limiting and
+> iframe support — buyer admin and buyer simulator. Coming next: GDPR tools (purge, erasure),
+> diagnostic command. Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
@@ -30,6 +30,23 @@ refuses replayed requests (same `payloadID`, or a `timestamp` outside the replay
 URL must be HTTPS and match one of the buyer's allowed domains (deny by default); it is checked at
 setup time and again before the cart is sent. An open PunchOut session expires after
 `session_lifetime`.
+
+## SAP OCI
+
+A buyer with the **OCI** protocol enters with `GET` or `POST https://<shop>/punchout/oci/<buyer code>`
+and the parameters `USERNAME`, `PASSWORD` and `HOOK_URL` (prefer `POST`: a `GET` puts the password in
+the access logs of every proxy on the way). The username is set on the buyer, the password is the
+buyer secret (same Argon2id hash, rotation and imposed value as a cXML secret); failures are limited
+like cXML authentications. `HOOK_URL` must match the buyer's return domains. The shopper is logged in
+at once, no start URL.
+
+*Transfer* posts the OCI 5.0 fields to `HOOK_URL`: `NEW_ITEM-DESCRIPTION` (40 characters),
+`QUANTITY`, `UNIT`, `PRICE` (net), `CURRENCY`, `PRICEUNIT`, `VENDORMAT`, `EXT_PRODUCT_ID`, the UNSPSC
+category when the item has one and the full description in `NEW_ITEM-LONGTEXT_n:132[]`; the `~`
+fields received at the entry (`~OkCode`, `~TARGET`, `~CALLER`) are sent back. The form targets
+`returntarget`, else `~TARGET`, else `_top`, in the charset `http_content_charset` (UTF-8 by default).
+*Cancel* sends no item. OCI functions (`FUNCTION=DETAIL`, `VALIDATE`, `SOURCING`…) are refused
+(HTTP 400) for now.
 
 ## Requisitions, classification and log
 
@@ -88,6 +105,7 @@ tmonier_sylius_punchout_cxml:
         setup: { limit: 30, interval: '1 minute' }                                 # per client address
         authentication_failures: { limit: 10, interval: '1 minute' }               # per identity and address
         authentication_failures_per_identity: { limit: 50, interval: '1 minute' }  # per identity, all addresses
+        oci_entry: { limit: 30, interval: '1 minute' }                             # OCI entries per client address
     keep_transferred_carts: false
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
@@ -95,7 +113,7 @@ tmonier_sylius_punchout_cxml:
 ## Setting up a buyer
 
 In the admin, **PunchOut buyers > Create**: code, name, channel, the Sylius customer the sessions log
-in as (mandatory), the buyer's `From` and `Sender` identities (one `domain identity` per line, e.g.
+in as (mandatory), for an OCI buyer its username, for a cXML buyer its `From` and `Sender` identities (one `domain identity` per line, e.g.
 `NetworkId AN01000000001`), the allowed return hosts (`s1.ariba.com` for exactly this host,
 `*.ariba.com` for its subdomains; never a public suffix such as `*.github.io`) and, if the procurement system shows the shop in
 an iframe, its origins (`https://s1.ariba.com`).

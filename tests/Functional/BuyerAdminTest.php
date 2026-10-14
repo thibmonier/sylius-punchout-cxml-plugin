@@ -117,18 +117,36 @@ final class BuyerAdminTest extends WebTestCase
         self::assertStringContainsString('This identity is already used by another PunchOut buyer.', $this->errors());
     }
 
-    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = ''): void
+    public function testAnOciBuyerNeedsAUsernameButNoCxmlIdentity(): void
+    {
+        $this->loginAdmin();
+
+        $this->submitCreateForm('cxml-' . bin2hex(random_bytes(3)), '');
+        self::assertFalse($this->client->getResponse()->isRedirect(), 'A cXML buyer needs its identities');
+
+        $this->submitCreateForm('oci-' . bin2hex(random_bytes(3)), '', protocol: 'oci');
+        self::assertFalse($this->client->getResponse()->isRedirect(), 'An OCI buyer needs its username');
+
+        $code = 'oci-' . bin2hex(random_bytes(3));
+        $this->submitCreateForm($code, '', protocol: 'oci', ociUsername: 'SAP_SRM');
+        self::assertTrue($this->client->getResponse()->isRedirect(), $this->errors());
+        $buyer = $this->buyer($code);
+        self::assertSame(['oci', 'SAP_SRM', 0], [$buyer->getProtocol(), $buyer->getOciUsername(), $buyer->getIdentities()->count()]);
+    }
+
+    private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = '', string $protocol = 'cxml', string $ociUsername = ''): void
     {
         $crawler = $this->client->request('GET', '/admin/punchout-buyers/new');
         self::assertResponseIsSuccessful();
         $form = $crawler->filter('form[name="tmonier_punchout_buyer"]')->form();
         $form['tmonier_punchout_buyer[code]'] = $code;
         $form['tmonier_punchout_buyer[name]'] = 'BigCorp Ariba';
-        $form['tmonier_punchout_buyer[protocol]'] = 'cxml';
+        $form['tmonier_punchout_buyer[protocol]'] = $protocol;
+        $form['tmonier_punchout_buyer[ociUsername]'] = $ociUsername;
         $form['tmonier_punchout_buyer[channel]'] = (string) $this->channel()->getCode();
         $form['tmonier_punchout_buyer[customer]'] = $customer ?? (string) $this->customer()->getEmail();
-        $form['tmonier_punchout_buyer[fromIdentities]'] = 'NetworkId ' . $fromIdentity;
-        $form['tmonier_punchout_buyer[senderIdentities]'] = 'NetworkId AN-' . bin2hex(random_bytes(3));
+        $form['tmonier_punchout_buyer[fromIdentities]'] = $fromIdentity !== '' ? 'NetworkId ' . $fromIdentity : '';
+        $form['tmonier_punchout_buyer[senderIdentities]'] = $fromIdentity !== '' ? 'NetworkId AN-' . bin2hex(random_bytes(3)) : '';
         $form['tmonier_punchout_buyer[returnDomains]'] = $returnDomains;
         $form['tmonier_punchout_buyer[iframeOrigins]'] = $iframeOrigins;
         $includeTax = $form['tmonier_punchout_buyer[includeTax]'];

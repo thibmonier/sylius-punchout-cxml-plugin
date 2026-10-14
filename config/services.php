@@ -16,6 +16,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\BuyerSecretController;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\InspectAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Controller\OciEntryAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciFormWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\FrameHeadersListener;
@@ -172,6 +174,16 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public();
     $services->alias('tmonier_punchout.controller.inspect', InspectAction::class)->public();
+
+    // OCI (US-012, US-020)
+    $services->set(OciFormWriter::class);
+    $services->set(OciEntryAction::class)
+        ->tag('controller.service_arguments')
+        ->public()
+        ->arg('$entryLimiter', service('limiter.tmonier_punchout_oci_entry'))
+        ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
+        ->arg('$identityFailureLimiter', service('limiter.tmonier_punchout_identity_failure'));
+    $services->alias('tmonier_punchout.controller.oci_entry', OciEntryAction::class)->public();
 
     // Admin: buyer form, first secret on creation, secret regeneration
     $services->set(BuyerType::class)

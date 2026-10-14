@@ -58,11 +58,17 @@ final readonly class BodyMasker
         }
         foreach ($xpath->query('//text() | //@*') ?: [] as $node) {
             if ($node instanceof \DOMText || $node instanceof \DOMAttr) {
-                $node->nodeValue = (string) preg_replace(self::EMAIL, '$1***@$2', (string) $node->nodeValue);
+                $node->nodeValue = $this->maskText((string) $node->nodeValue);
             }
         }
 
         return (string) $document->saveXML();
+    }
+
+    /** E-mail addresses keep their first letter and domain only (also used on OCI form parameters). */
+    public function maskText(string $text): string
+    {
+        return (string) preg_replace(self::EMAIL, '$1***@$2', $text);
     }
 
     /** @return list<\DOMElement> */

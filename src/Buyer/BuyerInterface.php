@@ -25,6 +25,10 @@ interface BuyerInterface extends ResourceInterface
 
     public function setProtocol(string $protocol): void;
 
+    public function getOciUsername(): ?string;
+
+    public function setOciUsername(?string $ociUsername): void;
+
     public function isEnabled(): bool;
 
     public function setEnabled(bool $enabled): void;

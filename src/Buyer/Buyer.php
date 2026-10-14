@@ -21,6 +21,9 @@ class Buyer implements BuyerInterface, \Stringable
 
     private bool $enabled = true;
 
+    /** OCI: the USERNAME sent by SAP (the PASSWORD is a credential, hashed like a cXML secret). */
+    private ?string $ociUsername = null;
+
     private ?CustomerInterface $customer = null;
 
     private ?ChannelInterface $channel = null;
@@ -88,6 +91,16 @@ class Buyer implements BuyerInterface, \Stringable
     public function setProtocol(string $protocol): void
     {
         $this->protocol = $protocol;
+    }
+
+    public function getOciUsername(): ?string
+    {
+        return $this->ociUsername;
+    }
+
+    public function setOciUsername(?string $ociUsername): void
+    {
+        $this->ociUsername = $ociUsername;
     }
 
     public function isEnabled(): bool
