@@ -14,7 +14,6 @@ use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Core\Model\TaxRateInterface;
 use Sylius\Component\Taxation\Model\TaxCategoryInterface;
-use Sylius\Component\Order\Model\AdjustmentInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerCredential;
@@ -138,107 +137,6 @@ final readonly class TestCatalog
      *
      * @return array{buyer: Buyer, secret: string}
      */
-    public function createBuyerWithTaxIncluded(): array
-    {
-        return $this->createBuyerWithCustomer(
-            fromIdentity: 'test-buyer-ttc@example.com',
-            senderIdentity: 'test-system-ttc@example.com',
-        );
-    }
-
-    /**
-     * Adds an order item (and one unit per quantity) directly to an existing order.
-     * Used to populate the PunchOut session's isolated cart (R1+R2).
-     *
-     * @param int $unitPriceCentimes unit price in centimes (e.g. 10000 = 100.00 EUR)
-     */
-    public function addItemToOrder(
-        OrderInterface $order,
-        int $unitPriceCentimes = 10000,
-        int $quantity = 1,
-    ): void {
-        $em = $this->container->get(EntityManagerInterface::class);
-        $variant = $this->getDefaultProductVariant();
-
-        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $order, $em);
-        for ($i = 0; $i < $quantity; ++$i) {
-            $this->buildOrderItemUnit($item, $em);
-        }
-        $em->flush();
-    }
-
-    /**
-     * Creates a Sylius cart (Order in state=cart) for the buyer's customer/channel,
-     * with one item pointing to an existing fixture product variant.
-     *
-     * @param int $unitPriceCentimes unit price in centimes (e.g. 10000 = 100.00 EUR)
-     */
-    public function createCartWithItem(
-        BuyerInterface $buyer,
-        int $unitPriceCentimes = 10000,
-        int $quantity = 1,
-    ): OrderInterface {
-        $em = $this->container->get(EntityManagerInterface::class);
-        $channel = $buyer->getChannel();
-        $customer = $buyer->getCustomer();
-
-        // Use an existing product variant from fixtures
-        $variant = $this->getDefaultProductVariant();
-
-        $order = $this->buildCart($channel, $customer, $em);
-
-        $item = $this->buildOrderItem($variant, $unitPriceCentimes, $order, $em);
-
-        // Add one OrderItemUnit per quantity (required by Sylius order item quantity tracking)
-        for ($i = 0; $i < $quantity; ++$i) {
-            $this->buildOrderItemUnit($item, $em);
-        }
-
-        $em->flush();
-
-        return $order;
-    }
-
-    /**
-     * Creates a cart with a tax-inclusive item (120.00 TTC, 20% tax → 100.00 HT).
-     * unitPrice = 12000 centimes, taxAdjustment per unit = 2000 centimes (neutral).
-     *
-     * If $existingOrder is provided, items are added to it instead of creating a new cart.
-     * This supports R1+R2 where TransferAction uses the PunchOut session's isolated cart.
-     */
-    public function createCartWithTaxItem(
-        BuyerInterface $buyer,
-        ?OrderInterface $existingOrder = null,
-    ): OrderInterface {
-        $em = $this->container->get(EntityManagerInterface::class);
-        $channel = $buyer->getChannel();
-        $customer = $buyer->getCustomer();
-
-        $variant = $this->getDefaultProductVariant();
-
-        if ($existingOrder instanceof \Sylius\Component\Core\Model\OrderInterface) {
-            // Re-attach to current EM (may be detached after HTTP requests)
-            $order = $em->find($existingOrder::class, $existingOrder->getId());
-            if (!$order instanceof OrderInterface) {
-                $order = $existingOrder;
-            }
-        } else {
-            $order = $this->buildCart($channel, $customer, $em);
-        }
-
-        // 120.00 EUR TTC (= 12000 centimes)
-        $item = $this->buildOrderItem($variant, 12000, $order, $em);
-
-        // One unit with a neutral tax adjustment of 2000 centimes (20.00 EUR embedded tax)
-        $unit = $this->buildOrderItemUnit($item, $em);
-        $adjustment = $this->buildTaxAdjustment(2000, $em);
-        $unit->addAdjustment($adjustment);
-        $em->persist($unit);
-
-        $em->flush();
-
-        return $order;
-    }
 
     /**
      * Creates an enabled product with one untracked variant sold on the channel at $priceCentimes.
@@ -419,53 +317,6 @@ final readonly class TestCatalog
         return $order;
     }
 
-    private function buildOrderItem(
-        ProductVariantInterface $variant,
-        int $unitPriceCentimes,
-        OrderInterface $order,
-        EntityManagerInterface $em,
-    ): \Sylius\Component\Core\Model\OrderItemInterface {
-        /** @var \Sylius\Component\Core\Model\OrderItemInterface $item */
-        $item = $this->container->get('sylius.factory.order_item')->createNew();
-        $item->setVariant($variant);
-        $item->setProductName($variant->getName() ?? $variant->getCode() ?? 'Test Product');
-        $item->setUnitPrice($unitPriceCentimes);
-        // fullDiscountedUnitPrice = unitPrice for fresh items (no promotions)
-        if (method_exists($item, 'setFullDiscountedUnitPrice')) {
-            $item->setFullDiscountedUnitPrice($unitPriceCentimes);
-        }
-        $order->addItem($item);
-        $em->persist($item);
-
-        return $item;
-    }
-
-    private function buildOrderItemUnit(
-        \Sylius\Component\Core\Model\OrderItemInterface $item,
-        EntityManagerInterface $em,
-    ): \Sylius\Component\Core\Model\OrderItemUnitInterface {
-        /** @var \Sylius\Component\Core\Model\OrderItemUnitInterface $unit */
-        $unit = $this->container->get('sylius.factory.order_item_unit')->createForItem($item);
-        $em->persist($unit);
-
-        return $unit;
-    }
-
-    private function buildTaxAdjustment(int $amountCentimes, EntityManagerInterface $em): AdjustmentInterface
-    {
-        /** @var AdjustmentInterface $adjustment */
-        $adjustment = $this->container->get('sylius.factory.adjustment')->createNew();
-        $adjustment->setType(\Sylius\Component\Core\Model\AdjustmentInterface::TAX_ADJUSTMENT);
-        $adjustment->setAmount($amountCentimes);
-        // R5: neutral=true means the tax is embedded in the unit price (TTC/tax-inclusive).
-        // NetPriceCalculator strips neutral tax to get the net price.
-        $adjustment->setNeutral(true);
-        $adjustment->setLabel('VAT 20%');
-        $em->persist($adjustment);
-
-        return $adjustment;
-    }
-
     private function getDefaultChannel(): ?ChannelInterface
     {
         $repo = $this->container->get('sylius.repository.channel');
@@ -480,20 +331,5 @@ final readonly class TestCatalog
         $customer = $repo->findOneBy(['email' => 'shop@example.com']);
 
         return $customer instanceof CustomerInterface ? $customer : null;
-    }
-
-    private function getDefaultProductVariant(): ProductVariantInterface
-    {
-        $repo = $this->container->get('sylius.repository.product_variant');
-        $variants = $repo->findBy([], ['id' => 'ASC'], 1);
-        if (empty($variants)) {
-            throw new \RuntimeException('No product variants found in fixtures. Run sylius:fixtures:load first.');
-        }
-        $variant = $variants[0];
-        if (!$variant instanceof ProductVariantInterface) {
-            throw new \RuntimeException('First product variant is not a ProductVariantInterface');
-        }
-
-        return $variant;
     }
 }

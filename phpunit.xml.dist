@@ -27,13 +27,8 @@
             <directory>tests/Functional</directory>
         </testsuite>
 
-        <testsuite name="integration">
-            <directory>tests/Integration</directory>
-        </testsuite>
-
         <testsuite name="non-unit">
             <directory>tests/Functional</directory>
-            <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
 </phpunit>

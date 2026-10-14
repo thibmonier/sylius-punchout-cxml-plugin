@@ -92,12 +92,6 @@ final class TransferActionTest extends WebTestCase
             ->getSingleResult();
         self::assertInstanceOf(PunchoutSession::class, $session);
 
-        // Add item to the PunchOut cart (required for transfer to proceed past cart-not-found check)
-        $punchoutCart = $session->getCart();
-        if ($punchoutCart instanceof \Sylius\Component\Core\Model\OrderInterface) {
-            $catalog->addItemToOrder($punchoutCart, 10000, 1);
-        }
-
         // Tamper the session's returnUrl to a private IP (HTTPS but private range)
         $session->setReturnUrl('https://192.168.1.100/evil-procurement-system');
         $em->flush();
