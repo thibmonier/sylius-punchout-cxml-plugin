@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
+use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\ShopperAuthenticator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
 
@@ -17,14 +18,18 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
  *
  * Consumes a single-use start token, authenticates the shopper and
  * redirects them to the shop homepage.
+ *
+ * ADR-0003: a linked Sylius customer is mandatory.
+ * If the buyer has no linked customer, the session is cancelled and a
+ * generic 403 error page is returned — no anonymous fallback.
  */
 final readonly class StartAction
 {
     public function __construct(
         private StartTokenConsumer $tokenConsumer,
         private ShopperAuthenticator $shopperAuthenticator,
-        private CurrentPunchoutSession $currentPunchoutSession,
         private UrlGeneratorInterface $urlGenerator,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -38,29 +43,32 @@ final readonly class StartAction
         if ($isPrefetch) {
             $session = $this->tokenConsumer->findValid($token);
 
-            return new Response('', $session instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession ? Response::HTTP_OK : Response::HTTP_NOT_FOUND);
+            return new Response('', $session instanceof PunchoutSession ? Response::HTTP_OK : Response::HTTP_NOT_FOUND);
         }
 
         // Consume the token atomically (pending → active)
         $session = $this->tokenConsumer->consume($token);
 
-        if (!$session instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession) {
+        if (!$session instanceof PunchoutSession) {
             // Token not found, expired, or already consumed
             return new Response('', Response::HTTP_NOT_FOUND);
         }
 
-        // Store the punchout session in the Symfony session
-        $this->currentPunchoutSession->set($session);
+        // ADR-0003: authenticate the buyer's linked customer — no anonymous fallback.
+        // ShopperAuthenticator throws RuntimeException when the buyer has no linked
+        // customer, no shop user, or the shop user is disabled.
+        try {
+            $this->shopperAuthenticator->authenticate($session, $request);
+        } catch (\RuntimeException) {
+            // Cancel the session so it cannot be reused.
+            $session->setStatus(PunchoutSession::STATUS_CANCELLED);
+            $this->entityManager->flush();
 
-        // Authenticate the buyer as a Sylius shop customer.
-        // A buyer without a linked customer or shop user proceeds as an anonymous shopper.
-        $buyer = $session->getBuyer();
-        if ($buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface) {
-            try {
-                $this->shopperAuthenticator->authenticate($session, $request);
-            } catch (\RuntimeException) {
-                // Buyer has no linked customer or shop user — continue as anonymous shopper.
-            }
+            return new Response(
+                '<html lang="en"><body>PunchOut session could not be established. Contact your administrator.</body></html>',
+                Response::HTTP_FORBIDDEN,
+                ['Content-Type' => 'text/html; charset=UTF-8'],
+            );
         }
 
         // Redirect to the shop

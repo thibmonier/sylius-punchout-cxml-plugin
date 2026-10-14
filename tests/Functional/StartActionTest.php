@@ -18,7 +18,8 @@ final class StartActionTest extends WebTestCase
     {
         $client = $this->client;
         $catalog = new TestCatalog(static::getContainer());
-        ['buyer' => $buyer] = $catalog->createBuyer();
+        // ADR-0003: StartAction requires a linked customer — use createBuyerWithCustomer()
+        ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
         $session = new PunchoutSession();
         $session->setBuyer($buyer);
@@ -57,7 +58,8 @@ final class StartActionTest extends WebTestCase
     {
         $client = $this->client;
         $catalog = new TestCatalog(static::getContainer());
-        ['buyer' => $buyer] = $catalog->createBuyer();
+        // ADR-0003: the subsequent GET consumes the token and calls authenticate() — needs customer
+        ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
         $session = new PunchoutSession();
         $session->setBuyer($buyer);
@@ -93,7 +95,8 @@ final class StartActionTest extends WebTestCase
     {
         $client = $this->client;
         $catalog = new TestCatalog(static::getContainer());
-        ['buyer' => $buyer] = $catalog->createBuyer();
+        // ADR-0003: first GET authenticates the shopper — needs a linked customer
+        ['buyer' => $buyer] = $catalog->createBuyerWithCustomer();
 
         $session = new PunchoutSession();
         $session->setBuyer($buyer);
