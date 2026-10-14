@@ -8,42 +8,55 @@ sylius_grid:
             sorting:
                 name: asc
             fields:
+                code:
+                    type: string
+                    label: sylius.ui.code
+                    sortable: ~
                 name:
                     type: string
-                    label: tmonier_punchout.admin.buyer.fields.name
+                    label: sylius.ui.name
                     sortable: ~
                 protocol:
-                    type: string
-                    label: tmonier_punchout.admin.buyer.fields.protocol
+                    type: twig
+                    label: tmonier_punchout.form.buyer.protocol.label
+                    options:
+                        template: "@TmonierSyliusPunchoutCxmlPlugin/admin/buyer/grid/field/protocol.html.twig"
+                customer:
+                    type: twig
+                    label: tmonier_punchout.form.buyer.customer
+                    path: .
+                    options:
+                        template: "@TmonierSyliusPunchoutCxmlPlugin/admin/buyer/grid/field/customer.html.twig"
+                channel:
+                    type: twig
+                    label: sylius.ui.channel
+                    path: .
+                    options:
+                        template: "@TmonierSyliusPunchoutCxmlPlugin/admin/buyer/grid/field/channel.html.twig"
                 enabled:
                     type: twig
-                    label: tmonier_punchout.admin.buyer.fields.enabled
-                    options:
-                        template: "@SyliusUi/grid/field/enabled.html.twig"
-                createdAt:
-                    type: datetime
-                    label: tmonier_punchout.admin.buyer.fields.created_at
+                    label: sylius.ui.enabled
                     sortable: ~
                     options:
-                        format: 'Y-m-d H:i'
+                        template: "@SyliusAdmin/shared/grid/field/boolean.html.twig"
             filters:
                 search:
                     type: string
                     label: sylius.ui.search
                     options:
-                        fields: [name]
+                        fields: [code, name]
                 enabled:
                     type: boolean
-                    label: tmonier_punchout.admin.buyer.fields.enabled
+                    label: sylius.ui.enabled
             actions:
                 main:
                     create:
                         type: create
-                        label: tmonier_punchout.admin.buyer.create
                 item:
                     update:
                         type: update
-                        label: tmonier_punchout.admin.buyer.actions.edit
                     delete:
                         type: delete
-                        label: tmonier_punchout.admin.buyer.actions.delete
+                bulk:
+                    delete:
+                        type: delete

@@ -1,0 +1,22 @@
+{% set punchout_session = tmonier_punchout_session() %}
+
+{% if punchout_session is not null %}
+    <div class="container">
+        <div class="alert alert-primary d-flex flex-wrap gap-3 justify-content-between align-items-center my-3" {{ sylius_test_html_attribute('tmonier-punchout-banner') }}>
+            <div>
+                <div class="fw-bold">{{ 'tmonier_punchout.ui.session.banner'|trans({'%buyer%': punchout_session.buyer.name|default('')}) }}</div>
+                <div class="small">{{ 'tmonier_punchout.ui.session.help'|trans }}</div>
+            </div>
+            <div class="d-flex gap-2">
+                <form method="post" action="{{ path('tmonier_punchout_cancel') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_cancel') }}">
+                    <button type="submit" class="btn btn-outline-secondary" {{ sylius_test_html_attribute('tmonier-punchout-cancel') }}>{{ 'tmonier_punchout.ui.session.cancel'|trans }}</button>
+                </form>
+                <form method="post" action="{{ path('tmonier_punchout_transfer') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_transfer') }}">
+                    <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-punchout-transfer') }}>{{ 'tmonier_punchout.ui.session.transfer'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}

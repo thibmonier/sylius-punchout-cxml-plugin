@@ -1,3 +1,7 @@
+imports:
+    - { resource: "grids/*.yaml" }
+    - { resource: "twig_hooks/**/*.yaml" }
+
 tmonier_sylius_punchout_cxml:
     supplier_identity:
         domain: '%env(PUNCHOUT_SUPPLIER_DOMAIN)%'

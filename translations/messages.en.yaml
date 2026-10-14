@@ -1,0 +1,44 @@
+tmonier_punchout:
+    ui:
+        session:
+            banner: 'PunchOut session — %buyer%'
+            help: 'Your cart will be sent to your procurement system. Orders are placed there, not in this shop.'
+            transfer: 'Transfer to my procurement system'
+            cancel: 'Cancel and go back'
+        menu:
+            buyers: 'PunchOut Buyers'
+        secret:
+            title: 'New shared secret'
+            help: 'Copy it now and give it to the buyer: it will not be shown again (only its hash is stored).'
+            active: 'Active secrets: %count%'
+            regenerate: 'Regenerate the secret'
+    form:
+        buyer:
+            name: Name
+            protocol:
+                label: Protocol
+                cxml: cXML
+                oci: OCI
+            enabled: Enabled
+            customer: 'Sylius customer (e-mail)'
+            customer_help: 'The PunchOut sessions log in as this customer: their prices and groups apply.'
+            return_domains: 'Allowed return domains'
+            return_domains_help: 'One domain per line (e.g. ariba.com allows s1.ariba.com). Empty: any HTTPS host.'
+            fromDomain: 'From domain'
+            fromIdentity: 'From identity (buyer)'
+            senderDomain: 'Sender domain'
+            senderIdentity: 'Sender identity (network or system)'
+            identities: 'cXML identities'
+            identities_help: 'As configured by the buyer in its procurement system (for SAP Ariba: domain NetworkId, AribaNetworkUserId…).'
+    flash:
+        buyer:
+            created: 'PunchOut buyer has been created.'
+            updated: 'PunchOut buyer has been updated.'
+            deleted: 'PunchOut buyer has been deleted.'
+    error:
+        unauthorized: 'Authentication failed.'
+        return_url_not_allowed: 'Return URL is not allowed.'
+        session_not_found: 'PunchOut session not found or expired.'
+        no_active_session: 'No active PunchOut session.'
+        xml_parse_error: 'XML parse error.'
+        request_too_large: 'Request body is too large.'

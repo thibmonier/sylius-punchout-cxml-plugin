@@ -3,14 +3,20 @@
 declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerResolver;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialHasher;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartContext;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
-use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CancelAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
+use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\RegenerateSecretAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
+use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\TransferAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
@@ -63,7 +69,8 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.buyer.credential_generator', CredentialGenerator::class)->public();
 
     // Security
-    $services->set(ReturnUrlValidator::class);
+    $services->set(ReturnUrlValidator::class)
+        ->arg('$insecureHosts', '%tmonier_punchout.insecure_return_url_hosts%');
     $services->alias('tmonier_punchout.security.return_url_validator', ReturnUrlValidator::class);
 
     // Session
@@ -105,18 +112,29 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TransferAction::class)
         ->tag('controller.service_arguments')
         ->public()
+        ->arg('$orderProcessor', service('sylius.order_processing.order_processor'))
         ->arg('$keepTransferredCarts', '%tmonier_punchout.keep_transferred_carts%')
         ->arg('$supplierDomain', '%tmonier_punchout.supplier_identity.domain%')
         ->arg('$supplierIdentity', '%tmonier_punchout.supplier_identity.identity%');
 
-    $services->set(CancelAction::class)
-        ->tag('controller.service_arguments')
-        ->public();
-
     $services->alias('tmonier_punchout.controller.cxml_endpoint', CxmlEndpointAction::class)->public();
     $services->alias('tmonier_punchout.controller.start', StartAction::class)->public();
     $services->alias('tmonier_punchout.controller.transfer', TransferAction::class)->public();
-    $services->alias('tmonier_punchout.controller.cancel', CancelAction::class)->public();
+
+    // Admin: buyer form, first secret on creation, secret regeneration
+    $services->set(BuyerType::class)
+        ->args(['%tmonier_punchout.model.buyer.class%', ['Default'], service('sylius.repository.customer'), service('doctrine.orm.entity_manager'), service('translator')])
+        ->tag('form.type');
+    $services->set(SecretIssuer::class);
+    $services->set(BuyerSecretListener::class)
+        ->tag('kernel.event_listener', ['event' => 'tmonier_punchout.buyer.pre_create', 'method' => 'onPreCreate']);
+    $services->set(RegenerateSecretAction::class)
+        ->tag('controller.service_arguments')
+        ->public();
+    $services->alias('tmonier_punchout.controller.admin_regenerate_secret', RegenerateSecretAction::class)->public();
+
+    // Shop: PunchOut session banner
+    $services->set(PunchoutExtension::class)->tag('twig.extension');
 
     // Fixtures
     $services->set(PunchoutDemoFixture::class)

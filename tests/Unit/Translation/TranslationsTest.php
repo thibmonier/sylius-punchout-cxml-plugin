@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Unit\Translation;
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
+
+/** Every translation key exists in the 7 languages of the plugin. */
+final class TranslationsTest extends TestCase
+{
+    private const LOCALES = ['en', 'fr', 'de', 'es', 'it', 'nl', 'pl'];
+
+    /** @return iterable<string, array{string, string}> */
+    public static function domainsAndLocales(): iterable
+    {
+        foreach (['messages', 'validators'] as $domain) {
+            foreach (self::LOCALES as $locale) {
+                yield $domain . '.' . $locale => [$domain, $locale];
+            }
+        }
+    }
+
+    #[Test]
+    #[DataProvider('domainsAndLocales')]
+    public function it_has_the_same_keys_as_english(string $domain, string $locale): void
+    {
+        self::assertSame($this->keys($domain, 'en'), $this->keys($domain, $locale));
+    }
+
+    /** @return list<string> */
+    private function keys(string $domain, string $locale): array
+    {
+        $data = Yaml::parseFile(__DIR__ . '/../../../translations/' . $domain . '.' . $locale . '.yaml');
+        self::assertIsArray($data);
+        $keys = [];
+        $walk = static function (array $node, string $prefix) use (&$walk, &$keys): void {
+            foreach ($node as $key => $value) {
+                $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
+                if (is_array($value)) {
+                    $walk($value, $path);
+                } else {
+                    $keys[] = $path;
+                }
+            }
+        };
+        $walk($data, '');
+        sort($keys);
+
+        return $keys;
+    }
+}

@@ -1,0 +1,44 @@
+tmonier_punchout:
+    ui:
+        session:
+            banner: 'Session PunchOut — %buyer%'
+            help: "Votre panier sera renvoyé dans votre outil d'achat. La commande se passe dans cet outil, pas dans cette boutique."
+            transfer: "Transférer vers mon outil d'achat"
+            cancel: 'Annuler et revenir'
+        menu:
+            buyers: 'Acheteurs PunchOut'
+        secret:
+            title: 'Nouveau secret partagé'
+            help: "Copiez-le maintenant et transmettez-le à l'acheteur : il ne sera plus affiché (seule son empreinte est enregistrée)."
+            active: 'Secrets actifs : %count%'
+            regenerate: 'Régénérer le secret'
+    form:
+        buyer:
+            name: Nom
+            protocol:
+                label: Protocole
+                cxml: cXML
+                oci: OCI
+            enabled: Actif
+            customer: 'Client Sylius (e-mail)'
+            customer_help: "Les sessions PunchOut se connectent avec ce client : ses prix et ses groupes s'appliquent."
+            return_domains: 'Domaines de retour autorisés'
+            return_domains_help: 'Un domaine par ligne (ex. ariba.com autorise s1.ariba.com). Vide : tout hôte HTTPS.'
+            fromDomain: 'Domaine From'
+            fromIdentity: 'Identité From (acheteur)'
+            senderDomain: 'Domaine Sender'
+            senderIdentity: 'Identité Sender (réseau ou système)'
+            identities: 'Identités cXML'
+            identities_help: "Telles que configurées par l'acheteur dans son outil d'achat (pour SAP Ariba : domaine NetworkId, AribaNetworkUserId…)."
+    flash:
+        buyer:
+            created: "L'acheteur PunchOut a été créé."
+            updated: "L'acheteur PunchOut a été mis à jour."
+            deleted: "L'acheteur PunchOut a été supprimé."
+    error:
+        unauthorized: "Échec de l'authentification."
+        return_url_not_allowed: "L'URL de retour n'est pas autorisée."
+        session_not_found: 'Session PunchOut introuvable ou expirée.'
+        no_active_session: 'Aucune session PunchOut active.'
+        xml_parse_error: "Erreur d'analyse XML."
+        request_too_large: 'Le corps de la requête est trop volumineux.'

@@ -1,0 +1,11 @@
+tmonier_punchout:
+    buyer:
+        code:
+            format: 'De code mag alleen kleine letters, cijfers, "-" en "_" bevatten.'
+        channel:
+            not_blank: 'Kies een kanaal.'
+        customer:
+            not_blank: 'Een Sylius-klant is verplicht.'
+            unknown: 'Geen klant met dit e-mailadres.'
+        identity:
+            taken: 'Deze identiteit wordt al gebruikt door een andere PunchOut-koper.'

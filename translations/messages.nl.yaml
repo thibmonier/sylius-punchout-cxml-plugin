@@ -1,0 +1,44 @@
+tmonier_punchout:
+    ui:
+        session:
+            banner: 'PunchOut-sessie — %buyer%'
+            help: 'Uw winkelwagen wordt naar uw inkoopsysteem gestuurd. U bestelt daar, niet in deze winkel.'
+            transfer: 'Overdragen naar mijn inkoopsysteem'
+            cancel: 'Annuleren en teruggaan'
+        menu:
+            buyers: PunchOut-kopers
+        secret:
+            title: 'Nieuw gedeeld geheim'
+            help: 'Kopieer het nu en geef het aan de koper: het wordt niet opnieuw getoond (alleen de hash wordt opgeslagen).'
+            active: 'Actieve geheimen: %count%'
+            regenerate: 'Geheim opnieuw genereren'
+    form:
+        buyer:
+            name: Naam
+            protocol:
+                label: Protocol
+                cxml: cXML
+                oci: OCI
+            enabled: Actief
+            customer: 'Sylius-klant (e-mail)'
+            customer_help: 'PunchOut-sessies loggen in als deze klant: zijn prijzen en groepen zijn van toepassing.'
+            return_domains: 'Toegestane retourdomeinen'
+            return_domains_help: 'Eén domein per regel (bijv. ariba.com staat s1.ariba.com toe). Leeg: elke HTTPS-host.'
+            fromDomain: From-domein
+            fromIdentity: 'From-identiteit (koper)'
+            senderDomain: Sender-domein
+            senderIdentity: 'Sender-identiteit (netwerk of systeem)'
+            identities: cXML-identiteiten
+            identities_help: 'Zoals de koper ze in zijn inkoopsysteem heeft ingesteld (bij SAP Ariba: domein NetworkId, AribaNetworkUserId…).'
+    flash:
+        buyer:
+            created: 'PunchOut-koper is aangemaakt.'
+            updated: 'PunchOut-koper is bijgewerkt.'
+            deleted: 'PunchOut-koper is verwijderd.'
+    error:
+        unauthorized: 'Authenticatie mislukt.'
+        return_url_not_allowed: 'Retour-URL is niet toegestaan.'
+        session_not_found: 'PunchOut-sessie niet gevonden of verlopen.'
+        no_active_session: 'Geen actieve PunchOut-sessie.'
+        xml_parse_error: XML-parsefout.
+        request_too_large: 'Verzoekbody is te groot.'

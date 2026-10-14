@@ -1,0 +1,44 @@
+tmonier_punchout:
+    ui:
+        session:
+            banner: 'PunchOut-Sitzung — %buyer%'
+            help: 'Ihr Warenkorb wird an Ihr Beschaffungssystem übertragen. Bestellt wird dort, nicht in diesem Shop.'
+            transfer: 'An mein Beschaffungssystem übertragen'
+            cancel: 'Abbrechen und zurückkehren'
+        menu:
+            buyers: PunchOut-Käufer
+        secret:
+            title: 'Neues Shared Secret'
+            help: 'Jetzt kopieren und an den Käufer weitergeben: Es wird nicht erneut angezeigt (nur sein Hash wird gespeichert).'
+            active: 'Aktive Secrets: %count%'
+            regenerate: 'Secret neu erzeugen'
+    form:
+        buyer:
+            name: Name
+            protocol:
+                label: Protokoll
+                cxml: cXML
+                oci: OCI
+            enabled: Aktiv
+            customer: 'Sylius-Kunde (E-Mail)'
+            customer_help: 'PunchOut-Sitzungen melden sich als dieser Kunde an: seine Preise und Gruppen gelten.'
+            return_domains: 'Erlaubte Rücksprung-Domains'
+            return_domains_help: 'Eine Domain pro Zeile (z. B. erlaubt ariba.com auch s1.ariba.com). Leer: jeder HTTPS-Host.'
+            fromDomain: From-Domain
+            fromIdentity: 'From-Identität (Käufer)'
+            senderDomain: Sender-Domain
+            senderIdentity: 'Sender-Identität (Netzwerk oder System)'
+            identities: cXML-Identitäten
+            identities_help: 'Wie vom Käufer in seinem Beschaffungssystem konfiguriert (bei SAP Ariba: Domain NetworkId, AribaNetworkUserId…).'
+    flash:
+        buyer:
+            created: 'PunchOut-Käufer wurde erstellt.'
+            updated: 'PunchOut-Käufer wurde aktualisiert.'
+            deleted: 'PunchOut-Käufer wurde gelöscht.'
+    error:
+        unauthorized: 'Authentifizierung fehlgeschlagen.'
+        return_url_not_allowed: 'Rückgabe-URL ist nicht erlaubt.'
+        session_not_found: 'PunchOut-Sitzung nicht gefunden oder abgelaufen.'
+        no_active_session: 'Keine aktive PunchOut-Sitzung.'
+        xml_parse_error: XML-Analysefehler.
+        request_too_large: 'Anfrage-Body ist zu groß.'

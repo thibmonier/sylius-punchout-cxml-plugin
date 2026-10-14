@@ -2,12 +2,23 @@ tmonier_punchout_admin_buyer:
     resource: |
         alias: tmonier_punchout.buyer
         section: admin
-        redirect: index
-        templates: "@SyliusAdmin/Crud"
-        except: ["show"]
+        templates: "@SyliusAdmin\\shared\\crud"
+        except: ['show']
+        redirect: update
+        grid: tmonier_punchout_admin_buyer
+        form:
+            type: Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType
+        permission: true
+        path: punchout-buyers
         vars:
             all:
-                subheader: tmonier_punchout.ui.menu.buyers
-            index:
-                icon: building
+                hook_prefix: tmonier_punchout_admin.buyer
     type: sylius.resource
+
+tmonier_punchout_admin_buyer_regenerate_secret:
+    path: /punchout-buyers/{id}/regenerate-secret
+    methods: [POST]
+    requirements:
+        id: '\d+'
+    defaults:
+        _controller: tmonier_punchout.controller.admin_regenerate_secret

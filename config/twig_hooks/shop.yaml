@@ -1,0 +1,7 @@
+sylius_twig_hooks:
+    hooks:
+        # Cart page in a PunchOut session: banner, "Transfer" and "Cancel" (outside the cart form).
+        'sylius_shop.cart.index.content':
+            tmonier_punchout_session:
+                template: '@TmonierSyliusPunchoutCxmlPlugin/shop/cart/punchout_session.html.twig'
+                priority: 200

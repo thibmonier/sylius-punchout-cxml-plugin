@@ -1,2 +1,1 @@
-# PunchOut shop routes are defined in config/routes.yaml (no channel prefix needed).
-# This file is kept for completeness; it imports the main routes file.
+# The shop routes of the plugin are declared in ../routes.yaml (no locale prefix).

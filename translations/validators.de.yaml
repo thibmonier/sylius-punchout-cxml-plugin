@@ -1,0 +1,11 @@
+tmonier_punchout:
+    buyer:
+        code:
+            format: 'Der Code darf nur Kleinbuchstaben, Ziffern, „-“ und „_“ enthalten.'
+        channel:
+            not_blank: 'Wählen Sie einen Kanal.'
+        customer:
+            not_blank: 'Ein Sylius-Kunde ist erforderlich.'
+            unknown: 'Kein Kunde mit dieser E-Mail-Adresse.'
+        identity:
+            taken: 'Diese Identität wird bereits von einem anderen PunchOut-Käufer verwendet.'
