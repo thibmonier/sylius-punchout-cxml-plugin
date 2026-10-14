@@ -28,6 +28,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Fixture\PunchoutDemoFixture;
 use Tmonier\SyliusPunchoutCxmlPlugin\Menu\AdminMenuListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\SessionFactory;
@@ -71,6 +72,8 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.buyer.credential_generator', CredentialGenerator::class)->public();
 
     // Security
+    $services->set(ReplayGuard::class)
+        ->arg('$window', '%tmonier_punchout.replay_window%');
     $services->set(ReturnUrlValidator::class)
         ->arg('$insecureHosts', '%tmonier_punchout.insecure_return_url_hosts%');
     $services->alias('tmonier_punchout.security.return_url_validator', ReturnUrlValidator::class);
@@ -104,6 +107,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(CxmlEndpointAction::class)
         ->tag('controller.service_arguments')
         ->public()
+        ->arg('$setupLimiter', service('limiter.tmonier_punchout_setup'))
         ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
         ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
 

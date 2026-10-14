@@ -6,6 +6,7 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
  * Wraps each test in a database transaction that is rolled back on tearDown,
@@ -34,6 +35,14 @@ trait DatabaseTransactionTrait
         // Disable kernel reboot between requests so the database connection —
         // and the open transaction — is shared between the test and all HTTP requests.
         $this->client->disableReboot();
+
+        // The setup rate limiter persists between tests: start each test with a fresh budget.
+        $limiter = static::getContainer()->get('limiter.tmonier_punchout_setup');
+        if ($limiter instanceof RateLimiterFactoryInterface) {
+            foreach (['127.0.0.1', '203.0.113.10'] as $ip) {
+                $limiter->create($ip)->reset();
+            }
+        }
 
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::$entityManager = $em instanceof EntityManagerInterface ? $em : null;

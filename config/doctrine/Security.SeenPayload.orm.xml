@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping
+    xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                        https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Tmonier\SyliusPunchoutCxmlPlugin\Security\SeenPayload" table="tmonier_punchout_seen_payload">
+        <unique-constraints>
+            <unique-constraint name="uniq_punchout_seen_payload" columns="buyer_id,payload_hash"/>
+        </unique-constraints>
+        <indexes>
+            <index name="idx_punchout_seen_payload_expires" columns="expires_at"/>
+        </indexes>
+
+        <id name="id" type="integer" column="id">
+            <generator strategy="AUTO"/>
+        </id>
+
+        <field name="payloadHash" type="string" length="64" nullable="false" column="payload_hash"/>
+        <field name="expiresAt" type="datetime_immutable" nullable="false" column="expires_at"/>
+
+        <many-to-one field="buyer" target-entity="Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer">
+            <join-column name="buyer_id" referenced-column-name="id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+
+</doctrine-mapping>

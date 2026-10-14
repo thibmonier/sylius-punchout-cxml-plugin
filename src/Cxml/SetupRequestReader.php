@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Cxml;
 
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\CxmlParseException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\UnsupportedOperationException;
 
 /**
  * Reads a parsed PunchOutSetupRequest DOMDocument and returns a SetupRequestData DTO.
@@ -55,7 +56,7 @@ final readonly class SetupRequestReader
         $setupEl = $setupRequest->item(0);
         $operation = $setupEl->getAttribute('operation');
         if (!in_array($operation, ['create', 'edit', 'inspect'], true)) {
-            throw new CxmlParseException(sprintf('Unknown operation "%s"', $operation));
+            throw new UnsupportedOperationException(sprintf('Unsupported operation "%s"', $operation));
         }
 
         $buyerCookie = $this->requireTextContent($xpath, '//Request/PunchOutSetupRequest/BuyerCookie');

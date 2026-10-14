@@ -25,6 +25,9 @@ parameters:
             path: src/Buyer/Buyer.php
         -
             identifier: property.unusedType
+            path: src/Security/SeenPayload.php
+        -
+            identifier: property.unusedType
             path: src/Buyer/BuyerCredential.php
         -
             identifier: property.unusedType

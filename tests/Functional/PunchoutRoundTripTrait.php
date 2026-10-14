@@ -14,16 +14,24 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
  */
 trait PunchoutRoundTripTrait
 {
-    protected function setupRequestXml(BuyerInterface $buyer, string $secret, string $buyerCookie, string $returnUrl = 'https://ariba.example.com/return'): string
-    {
+    protected function setupRequestXml(
+        BuyerInterface $buyer,
+        string $secret,
+        string $buyerCookie,
+        string $returnUrl = 'https://ariba.example.com/return',
+        ?string $payloadId = null,
+        ?string $timestamp = null,
+        string $operation = 'create',
+        string $dtdVersion = '1.2.071',
+    ): string {
         $from = $this->identity($buyer, BuyerIdentity::ROLE_FROM);
         $sender = $this->identity($buyer, BuyerIdentity::ROLE_SENDER);
-        $timestamp = (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339);
-        $payloadId = bin2hex(random_bytes(8)) . '@test.local';
+        $timestamp ??= (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339);
+        $payloadId ??= bin2hex(random_bytes(8)) . '@test.local';
 
         return <<<XML
             <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2.071/cXML.dtd">
+            <!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/{$dtdVersion}/cXML.dtd">
             <cXML payloadID="{$payloadId}" timestamp="{$timestamp}">
                 <Header>
                     <From><Credential domain="{$from->getDomain()}"><Identity>{$from->getIdentity()}</Identity></Credential></From>
@@ -34,7 +42,7 @@ trait PunchoutRoundTripTrait
                     </Sender>
                 </Header>
                 <Request deploymentMode="test">
-                    <PunchOutSetupRequest operation="create">
+                    <PunchOutSetupRequest operation="{$operation}">
                         <BuyerCookie>{$buyerCookie}</BuyerCookie>
                         <BrowserFormPost><URL>{$returnUrl}</URL></BrowserFormPost>
                     </PunchOutSetupRequest>
@@ -43,7 +51,15 @@ trait PunchoutRoundTripTrait
             XML;
     }
 
-    /** Posts a setup request and opens the session in the browser; returns the start token. */
+    /** Posts a setup request as the procurement system does and returns the cXML response. */
+    protected function postSetup(string $xml, string $ip = '203.0.113.10'): string
+    {
+        $this->client->request('POST', '/punchout/cxml', [], [], ['CONTENT_TYPE' => 'text/xml', 'REMOTE_ADDR' => $ip], $xml);
+
+        return (string) $this->client->getResponse()->getContent();
+    }
+
+    /** Posts a setup request and opens the session in the browser. */
     protected function startPunchout(BuyerInterface $buyer, string $secret, string $buyerCookie = 'COOKIE-TEST'): void
     {
         $this->client->request('POST', '/punchout/cxml', [], [], ['CONTENT_TYPE' => 'text/xml'], $this->setupRequestXml($buyer, $secret, $buyerCookie));

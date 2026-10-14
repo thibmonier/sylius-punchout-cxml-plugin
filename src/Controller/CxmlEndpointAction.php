@@ -6,16 +6,21 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerResolver;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\CxmlParseException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\UnsupportedOperationException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\XmlLoadException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\RateLimitKeys;
+use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReplayGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\SessionFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer;
@@ -40,6 +45,8 @@ final readonly class CxmlEndpointAction
         private SessionFactory $sessionFactory,
         private StartTokenIssuer $startTokenIssuer,
         private UrlGeneratorInterface $urlGenerator,
+        private ReplayGuard $replayGuard,
+        private RateLimiterFactory $setupLimiter,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
     ) {
@@ -51,6 +58,15 @@ final readonly class CxmlEndpointAction
         $request->setSession(new \Symfony\Component\HttpFoundation\Session\Session(
             new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage(),
         ));
+
+        // Rate limit per address before any work (each authentication costs an Argon2id hash)
+        $limit = $this->setupLimiter->create(RateLimitKeys::ip($request->getClientIp()))->consume();
+        if (!$limit->isAccepted()) {
+            return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, [
+                'Retry-After' => (string) max(1, $limit->getRetryAfter()->getTimestamp() - time()),
+                'Cache-Control' => 'no-store',
+            ]);
+        }
 
         $body = $request->getContent();
 
@@ -75,8 +91,10 @@ final readonly class CxmlEndpointAction
         // Read the setup request
         try {
             $setupData = $this->requestReader->read($doc);
+        } catch (UnsupportedOperationException) {
+            return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         } catch (CxmlParseException) {
-            return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Invalid cXML structure');
+            return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
         }
 
         // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
@@ -104,6 +122,11 @@ final readonly class CxmlEndpointAction
         // Disabled buyer → 403 (identity is known but access is forbidden)
         if (!$buyer->isEnabled()) {
             return $this->errorResponse(CxmlStatus::FORBIDDEN, 'Forbidden');
+        }
+
+        // Anti-replay: timestamp within the window, payloadID never accepted for this buyer
+        if (!$buyer instanceof Buyer || !$this->replayGuard->accept($buyer, $setupData->payloadId, $setupData->timestamp)) {
+            return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
         }
 
         // Validate return URL (HTTPS mandatory; domain whitelist if configured)
