@@ -1,0 +1,90 @@
+# Workflow claude-craft — Spec-Driven Development
+project: tmonier/sylius-punchout-cxml-plugin
+description: PunchOut cXML / OCI pour l'e-procurement B2B (SAP Ariba, Coupa, SAP OCI) dans Sylius 2
+track: enterprise
+methodology: spec-driven-development
+initialized_at: 2026-10-14T13:33:26+02:00
+current_phase: implementation
+
+complexity:
+  files: enterprise        # plugin neuf, 50+ fichiers
+  entities: standard       # ~3 (configuration acheteur, session PunchOut, journal des messages)
+  integrations: enterprise # cXML + OCI (+ company-accounts optionnel)
+  stories: enterprise      # 15+
+  teams: quick             # 1
+  security: enterprise     # secrets partagés, XML non fiable (XXE), session en iframe tiers
+  score: 15
+
+local_environment:         # suite des ports réservés par les autres plugins
+  mysql_port: 3334
+  mailhog_ports: [8053, 1053]
+  dev_server_port: 8101
+
+phases:
+  analysis:
+    status: done
+    started_at: 2026-10-14T13:30:00+02:00
+    completed_at: 2026-10-14T15:10:00+02:00
+    artifacts:
+      research_memo_partial: done          # analysis/01-research-memo-partial.md (base, 14 lacunes comblées)
+      gap_research:
+        A_cxml_protocol: done              # analysis/A-cxml-protocol-reference.md (guide 1.2.071 lu)
+        B_oci_platforms_browser: done      # analysis/B-oci-platforms-browser-security.md
+        C_ecosystem_libs: done             # analysis/C-ecosystem-positioning.md
+        D_sylius_code_hooks: done          # analysis/D-sylius-integration-points.md
+      research_summary: done               # analysis/research-summary.md
+      constraints: done                    # analysis/constraints.md
+      risks_opportunities: done            # analysis/risks-opportunities.md (13 risques)
+      technical_options: done              # analysis/technical-options.md (17 options)
+      sylius_plus_positioning: done        # complémentaire : Plus n'a pas de PunchOut ; niche libre
+    open_points:
+      - longueurs exactes des champs OCI à confirmer dans le PDF OCI 5.0 (désormais requis : OCI en v1)
+      - spike friendsofcxml/cxml-php (sûreté du parseur, coût de jms/serializer) en conception
+    decisions:                       # arbitrages utilisateur 2026-10-14 ~15:15 (porte de l'analyse)
+      protocols_v1: [cxml, oci]
+      cxml_operations_v1: [create, edit, inspect]   # source / RFQ hors périmètre
+      order_request: v1.1             # réception du PO final → commande Sylius
+      buyer_identity: mapped_customer_required      # client Sylius rattaché (+ entreprise company-accounts optionnelle), connexion auto
+    gate: validée (arbitrages donnés, passage en planification)
+  planning:
+    status: done
+    started_at: 2026-10-14T15:20:00+02:00
+    artifacts:
+      prd: done                # prd.md (FR-1 à FR-24, NFR-1 à 8, KPI, jalons)
+      personas: done           # personas.md (Claire, Marc, Sophie, Julien, outil d'achat)
+      backlog: done            # backlog/ : 8 epics, 31 stories ; v1 111 pts, v1.1 16 pts
+      sprint_001: done         # sprints/sprint-001/sprint-goal.md (walking skeleton, 34 pts)
+    validation:
+      invest: ok               # toutes les stories <= 8 pts, testables, Gherkin
+      three_c: ok
+      gherkin: ok
+    gate: validée (backlog et plan de sprints validés par l'utilisateur, 2026-10-14)
+  design:
+    status: done
+    started_at: 2026-10-14T16:30:00+02:00
+    artifacts:
+      tech_spec: done          # tech-spec.md
+      architecture: done       # architecture/c4.md, erd.md, api.md, security.md
+      adr: done                # ../docs/adr/ 0001-0007
+      spikes: done             # analysis/E-spike-cxml-library.md (DOM maison), analysis/F-oci-field-reference.md
+    decisions:                 # validées par l'utilisateur 2026-10-14
+      - secret imposé saisissable (US-002, 16 caractères minimum)
+      - NFR-6 reformulée (setup < 300 ms hors vérification Argon2id, ADR-0004)
+      - Secure OCI ajouté au backlog (US-033, Could, après v1.1)
+    gate: validée (tech spec et ADR validés par l'utilisateur, 2026-10-14)
+  implementation:
+    status: in_progress
+    started_at: 2026-10-14T17:30:00+02:00
+    repository: https://github.com/thibmonier/sylius-punchout-cxml-plugin   # public, topics posés, vide (push après sprint 1)
+    sprint_001:
+      status: in_progress    # builder lancé (brief sprints/sprint-001/builder-brief.md)
+      stories: [US-001, US-007, US-013, US-018, US-026]
+
+constraints:
+  - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier
+  - socle qualité claude-craft (ECS, PHPStan level max, Rector, PHPUnit unit + functional, CI matrice Sylius 2.2/2.3)
+  - aucun identifiant ni secret réaliste en dur dans les tests (GitGuardian)
+  - pas de communication tant que le positionnement vs Sylius Plus n'est pas établi
+
+next_action: "Sprint 1 en cours : revue, push, CI"
+next_command: "/workflow:implement"
