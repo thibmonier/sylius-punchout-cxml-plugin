@@ -15,3 +15,6 @@ tmonier_punchout:
             invalid: 'Invalid domain: use ariba.com or *.ariba.com.'
         iframe_origins:
             invalid: 'Invalid origin: use https://host (e.g. https://s1.ariba.com).'
+    classification:
+        unspsc: 'The UNSPSC code has 8 digits.'
+        unit: 'The unit is an uppercase code of up to 8 letters or digits (e.g. EA).'

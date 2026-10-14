@@ -39,6 +39,10 @@ class Buyer implements BuyerInterface, \Stringable
 
     private bool $includeTax = false;
 
+    private string $defaultUnit = 'EA';
+
+    private ?string $defaultUnspsc = null;
+
     /** @var Collection<int, BuyerIdentity> */
     private Collection $identities;
 
@@ -164,6 +168,26 @@ class Buyer implements BuyerInterface, \Stringable
     public function setIncludeShipping(?bool $includeShipping): void
     {
         $this->includeShipping = $includeShipping;
+    }
+
+    public function getDefaultUnit(): string
+    {
+        return $this->defaultUnit;
+    }
+
+    public function setDefaultUnit(string $defaultUnit): void
+    {
+        $this->defaultUnit = $defaultUnit;
+    }
+
+    public function getDefaultUnspsc(): ?string
+    {
+        return $this->defaultUnspsc;
+    }
+
+    public function setDefaultUnspsc(?string $defaultUnspsc): void
+    {
+        $this->defaultUnspsc = $defaultUnspsc;
     }
 
     public function isIncludeTax(): bool

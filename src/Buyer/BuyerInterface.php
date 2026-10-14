@@ -61,6 +61,14 @@ interface BuyerInterface extends ResourceInterface
 
     public function setIncludeShipping(?bool $includeShipping): void;
 
+    public function getDefaultUnit(): string;
+
+    public function setDefaultUnit(string $defaultUnit): void;
+
+    public function getDefaultUnspsc(): ?string;
+
+    public function setDefaultUnspsc(?string $defaultUnspsc): void;
+
     public function isIncludeTax(): bool;
 
     public function setIncludeTax(bool $includeTax): void;

@@ -7,6 +7,8 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Transfer;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ItemClassifierInterface;
 
 /**
  * Extracts TransferLine DTOs from a Sylius order (R5: no channelTaxIncluded flag).
@@ -15,14 +17,16 @@ use Sylius\Component\Core\Model\ProductVariantInterface;
  */
 final readonly class TransferLineExtractor
 {
-    public function __construct(private NetPriceCalculator $netPriceCalculator)
-    {
+    public function __construct(
+        private NetPriceCalculator $netPriceCalculator,
+        private ItemClassifierInterface $itemClassifier,
+    ) {
     }
 
     /**
      * @return list<TransferLine>
      */
-    public function extract(OrderInterface $order): array
+    public function extract(OrderInterface $order, ?BuyerInterface $buyer = null): array
     {
         $lines = [];
 
@@ -39,6 +43,7 @@ final readonly class TransferLineExtractor
             $description = $item->getProductName() ?? $code;
             $quantity = $item->getQuantity();
 
+            $classification = $this->itemClassifier->classify($variant, $buyer);
             $lines[] = new TransferLine(
                 variantCode: $code,
                 supplierPartAuxId: 'v1:' . $code,
@@ -46,7 +51,8 @@ final readonly class TransferLineExtractor
                 quantity: $quantity,
                 unitNetPrice: $unitNetPrice,
                 currency: $currency,
-                unitOfMeasure: 'EA',
+                unitOfMeasure: $classification->unit,
+                unspsc: $classification->unspsc,
             );
         }
 

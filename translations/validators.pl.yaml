@@ -15,3 +15,6 @@ tmonier_punchout:
             invalid: 'Nieprawidłowa domena: użyj ariba.com lub *.ariba.com.'
         iframe_origins:
             invalid: 'Nieprawidłowe źródło: użyj https://host (np. https://s1.ariba.com).'
+    classification:
+        unspsc: 'Kod UNSPSC ma 8 cyfr.'
+        unit: 'Jednostka to kod wielkimi literami, do 8 liter lub cyfr (np. EA).'

@@ -21,6 +21,10 @@
         <field name="iframeOrigins" type="json" nullable="false" column="iframe_origins"/>
         <field name="locale" type="string" length="20" nullable="true"/>
         <field name="includeShipping" type="boolean" nullable="true" column="include_shipping"/>
+        <field name="defaultUnit" type="string" length="8" nullable="false" column="default_unit">
+            <options><option name="default">EA</option></options>
+        </field>
+        <field name="defaultUnspsc" type="string" length="16" nullable="true" column="default_unspsc"/>
         <field name="includeTax" type="boolean" nullable="false" column="include_tax">
             <options><option name="default">0</option></options>
         </field>

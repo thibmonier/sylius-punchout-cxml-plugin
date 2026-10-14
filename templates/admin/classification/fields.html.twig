@@ -1,0 +1,10 @@
+{# PunchOut classification (UNSPSC, unit of measure) on the product and taxon forms. #}
+{% set form = hookable_metadata.context.form %}
+{% if form.tmonierPunchout is defined %}
+    <div class="row" {{ sylius_test_html_attribute('tmonier-punchout-classification') }}>
+        <div class="col-12 col-md-6">{{ form_row(form.tmonierPunchout.unspsc) }}</div>
+        {% if form.tmonierPunchout.unit is defined %}
+            <div class="col-12 col-md-6">{{ form_row(form.tmonierPunchout.unit) }}</div>
+        {% endif %}
+    </div>
+{% endif %}

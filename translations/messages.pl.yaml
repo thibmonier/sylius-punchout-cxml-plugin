@@ -46,6 +46,13 @@ tmonier_punchout:
             identities_format: 'Jedna tożsamość w wierszu: domena, potem tożsamość, np. NetworkId AN01000000001 lub DUNS 123456789.'
             include_tax: 'Wysyłaj podatek koszyka'
             include_shipping: 'Wysyłaj koszt dostawy koszyka'
+            default_unit: 'Domyślna jednostka miary'
+            default_unspsc: 'Domyślny kod UNSPSC'
+        classification:
+            unspsc: 'Kod UNSPSC (PunchOut)'
+            unspsc_help: '8 cyfr, np. 56101504. Produkty dziedziczą kod swojej głównej kategorii lub jej nadrzędnych.'
+            unit: 'Jednostka miary (PunchOut)'
+            unit_help: 'Kod UN/CEFACT oczekiwany przez systemy zakupowe, np. EA (sztuka), C62 (element), BX (pudełko).'
     flash:
         buyer:
             created: 'Nabywca PunchOut został utworzony.'

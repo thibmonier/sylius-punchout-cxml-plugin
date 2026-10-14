@@ -28,6 +28,12 @@ parameters:
             path: src/Security/SeenPayload.php
         -
             identifier: property.unusedType
+            path: src/Classification/ProductClassification.php
+        -
+            identifier: property.unusedType
+            path: src/Classification/TaxonClassification.php
+        -
+            identifier: property.unusedType
             path: src/Buyer/BuyerCredential.php
         -
             identifier: property.unusedType

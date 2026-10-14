@@ -25,6 +25,12 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\TransferAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ClassificationManager;
+use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ItemClassifier;
+use Tmonier\SyliusPunchoutCxmlPlugin\Form\Extension\ProductClassificationExtension;
+use Tmonier\SyliusPunchoutCxmlPlugin\Form\Extension\TaxonClassificationExtension;
+use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\ClassificationType;
+use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ItemClassifierInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
@@ -113,6 +119,13 @@ return static function (ContainerConfigurator $container): void {
 
     // Transfer
     $services->set(NetPriceCalculator::class);
+    $services->set(ItemClassifier::class);
+    $services->set(ClassificationManager::class);
+    $services->set(ClassificationType::class)->tag('form.type');
+    $services->set(ProductClassificationExtension::class)->tag('form.type_extension');
+    $services->set(TaxonClassificationExtension::class)->tag('form.type_extension');
+    $services->alias(ItemClassifierInterface::class, ItemClassifier::class);
+    $services->alias('tmonier_punchout.classification.item_classifier', ItemClassifierInterface::class)->public();
     $services->set(TransferLineExtractor::class);
 
     $services->alias('tmonier_punchout.transfer.net_price_calculator', NetPriceCalculator::class);

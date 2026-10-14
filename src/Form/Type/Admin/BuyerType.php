@@ -94,6 +94,18 @@ final class BuyerType extends AbstractResourceType
                     new All([new Regex(pattern: '/^(\*\.)?([a-z0-9-]+\.)+[a-z][a-z0-9-]+$|^localhost$/', message: 'tmonier_punchout.buyer.return_domains.invalid')]),
                 ],
             ])
+            ->add('defaultUnit', TextType::class, [
+                'label' => 'tmonier_punchout.form.buyer.default_unit',
+                'help' => 'tmonier_punchout.form.classification.unit_help',
+                'empty_data' => 'EA',
+                'constraints' => [new NotBlank(), new Regex(pattern: '/^[A-Z0-9]{1,8}$/', message: 'tmonier_punchout.classification.unit')],
+            ])
+            ->add('defaultUnspsc', TextType::class, [
+                'label' => 'tmonier_punchout.form.buyer.default_unspsc',
+                'help' => 'tmonier_punchout.form.classification.unspsc_help',
+                'required' => false,
+                'constraints' => [new Regex(pattern: '/^\d{8}$/', message: 'tmonier_punchout.classification.unspsc')],
+            ])
             ->add('includeTax', CheckboxType::class, ['label' => 'tmonier_punchout.form.buyer.include_tax', 'required' => false])
             ->add('includeShipping', CheckboxType::class, ['label' => 'tmonier_punchout.form.buyer.include_shipping', 'required' => false])
             ->add('iframeOrigins', TextareaType::class, [

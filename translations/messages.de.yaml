@@ -46,6 +46,13 @@ tmonier_punchout:
             identities_format: 'Eine Identität pro Zeile: Domain, dann Identität, z. B. NetworkId AN01000000001 oder DUNS 123456789.'
             include_tax: 'Steuer des Warenkorbs senden'
             include_shipping: 'Versandkosten des Warenkorbs senden'
+            default_unit: Standard-Mengeneinheit
+            default_unspsc: Standard-UNSPSC-Code
+        classification:
+            unspsc: 'UNSPSC-Code (PunchOut)'
+            unspsc_help: '8 Ziffern, z. B. 56101504. Produkte erben den Code ihrer Hauptkategorie oder deren Eltern.'
+            unit: 'Mengeneinheit (PunchOut)'
+            unit_help: 'Von Beschaffungssystemen erwarteter UN/CEFACT-Code, z. B. EA (Stück), C62 (Teil), BX (Karton).'
     flash:
         buyer:
             created: 'PunchOut-Käufer wurde erstellt.'

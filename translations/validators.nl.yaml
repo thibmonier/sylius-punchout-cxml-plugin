@@ -15,3 +15,6 @@ tmonier_punchout:
             invalid: 'Ongeldig domein: gebruik ariba.com of *.ariba.com.'
         iframe_origins:
             invalid: 'Ongeldige origin: gebruik https://host (bijv. https://s1.ariba.com).'
+    classification:
+        unspsc: 'De UNSPSC-code heeft 8 cijfers.'
+        unit: 'De eenheid is een code van maximaal 8 hoofdletters of cijfers (bijv. EA).'

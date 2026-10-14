@@ -46,6 +46,13 @@ tmonier_punchout:
             identities_format: 'Una identidad por línea: el dominio y luego la identidad, p. ej. NetworkId AN01000000001 o DUNS 123456789.'
             include_tax: 'Enviar el impuesto del carrito'
             include_shipping: 'Enviar los gastos de envío del carrito'
+            default_unit: 'Unidad de medida por defecto'
+            default_unspsc: 'Código UNSPSC por defecto'
+        classification:
+            unspsc: 'Código UNSPSC (PunchOut)'
+            unspsc_help: '8 dígitos, p. ej. 56101504. Los productos heredan el código de su taxón principal o de sus padres.'
+            unit: 'Unidad de medida (PunchOut)'
+            unit_help: 'Código UN/CEFACT esperado por los sistemas de compras, p. ej. EA (unidad), C62 (pieza), BX (caja).'
     flash:
         buyer:
             created: 'El comprador PunchOut ha sido creado.'

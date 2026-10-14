@@ -12,6 +12,7 @@ use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
+use Sylius\Component\Core\Model\TaxonInterface;
 use Sylius\Component\Core\Model\TaxRateInterface;
 use Sylius\Component\Taxation\Model\TaxCategoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -160,6 +161,7 @@ final readonly class TestCatalog
         ChannelInterface $channel,
         int $priceCentimes,
         ?TaxCategoryInterface $taxCategory = null,
+        ?TaxonInterface $mainTaxon = null,
     ): ProductVariantInterface {
         $em = $this->container->get(EntityManagerInterface::class);
         $channel = $this->managed($channel);
@@ -174,6 +176,7 @@ final readonly class TestCatalog
         $product->setName('PunchOut test product ' . $code);
         $product->setSlug(strtolower($code));
         $product->addChannel($channel);
+        $product->setMainTaxon($mainTaxon);
 
         $variant = $product->getVariants()->first();
         $this->assertVariant($variant);
@@ -248,6 +251,26 @@ final readonly class TestCatalog
             }
         }
         $this->container->get(EntityManagerInterface::class)->flush();
+    }
+
+    /** Creates a taxon, child of $parent when given. */
+    public function createTaxon(?TaxonInterface $parent = null): TaxonInterface
+    {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $code = 'PO_TAXON_' . strtoupper(bin2hex(random_bytes(4)));
+
+        /** @var TaxonInterface $taxon */
+        $taxon = $this->container->get('sylius.factory.taxon')->createNew();
+        $taxon->setCode($code);
+        $taxon->setCurrentLocale('en_US');
+        $taxon->setFallbackLocale('en_US');
+        $taxon->setName('PunchOut taxon ' . $code);
+        $taxon->setSlug(strtolower($code));
+        $taxon->setParent($parent);
+        $em->persist($taxon);
+        $em->flush();
+
+        return $taxon;
     }
 
     /** Gives a buyer channel back as an entity managed by the current entity manager. */

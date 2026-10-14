@@ -46,6 +46,13 @@ tmonier_punchout:
             identities_format: 'Eén identiteit per regel: het domein en dan de identiteit, bijv. NetworkId AN01000000001 of DUNS 123456789.'
             include_tax: 'Belasting van de winkelwagen meesturen'
             include_shipping: 'Verzendkosten van de winkelwagen meesturen'
+            default_unit: 'Standaard maateenheid'
+            default_unspsc: 'Standaard UNSPSC-code'
+        classification:
+            unspsc: 'UNSPSC-code (PunchOut)'
+            unspsc_help: '8 cijfers, bijv. 56101504. Producten erven de code van hun hoofdtaxon of de bovenliggende taxons.'
+            unit: 'Maateenheid (PunchOut)'
+            unit_help: 'UN/CEFACT-code die inkoopsystemen verwachten, bijv. EA (stuk), C62 (eenheid), BX (doos).'
     flash:
         buyer:
             created: 'PunchOut-koper is aangemaakt.'
