@@ -56,8 +56,10 @@ final class BuyerSecretRotationTest extends WebTestCase
         ['buyer' => $buyer] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();
         $this->loginAdmin();
 
-        $this->setSecret($buyer, 'too-short');
-        self::assertStringContainsString('at least 16 characters', (string) $this->client->getResponse()->getContent());
+        foreach (['too-short', str_repeat(' ', 20), str_repeat('a', 20), str_repeat('x', 257)] as $weak) {
+            $this->setSecret($buyer, $weak);
+            self::assertStringContainsString('at least 16 characters', (string) $this->client->getResponse()->getContent());
+        }
         self::assertCount(1, $this->buyer($buyer)->getActiveCredentials());
 
         $imposed = 'imposed-' . bin2hex(random_bytes(12));

@@ -20,6 +20,8 @@ final readonly class SecretIssuer
 
     public const MIN_LENGTH = 16;
 
+    public const MAX_LENGTH = 256;
+
     public function __construct(
         private CredentialGenerator $generator,
         private CredentialHasher $hasher,
@@ -30,8 +32,8 @@ final readonly class SecretIssuer
     /** @param string|null $imposedSecret the secret chosen by the procurement system, or null to generate one */
     public function issue(Buyer $buyer, ?string $imposedSecret = null): void
     {
-        if ($imposedSecret !== null && mb_strlen($imposedSecret) < self::MIN_LENGTH) {
-            throw new \InvalidArgumentException(sprintf('A secret has at least %d characters.', self::MIN_LENGTH));
+        if ($imposedSecret !== null && !$this->isAcceptable($imposedSecret)) {
+            throw new \InvalidArgumentException(sprintf('A secret has %d to %d characters and is not trivial.', self::MIN_LENGTH, self::MAX_LENGTH));
         }
 
         $active = $buyer->getActiveCredentials();
@@ -50,5 +52,13 @@ final readonly class SecretIssuer
         if ($imposedSecret === null && $session instanceof FlashBagAwareSessionInterface) {
             $session->getFlashBag()->set(self::FLASH, [$secret]);
         }
+    }
+
+    /** 16 to 256 characters without the surrounding spaces, and not a single repeated character. */
+    private function isAcceptable(string $secret): bool
+    {
+        $length = mb_strlen(trim($secret));
+
+        return $length >= self::MIN_LENGTH && $length <= self::MAX_LENGTH && count(array_unique(mb_str_split(trim($secret)))) > 1;
     }
 }

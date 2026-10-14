@@ -70,7 +70,8 @@ tmonier_sylius_punchout_cxml:
     replay_window: 900               # accepted clock skew of the setup timestamp, in seconds
     max_request_bytes: 262144        # 256 KiB
     rate_limits:
-        setup: { limit: 30, interval: '1 minute' }   # per client address
+        setup: { limit: 30, interval: '1 minute' }                    # per client address
+        authentication_failures: { limit: 10, interval: '1 minute' }  # per buyer identity, any address
     keep_transferred_carts: false
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]
 ```
@@ -79,8 +80,8 @@ tmonier_sylius_punchout_cxml:
 
 In the admin, **PunchOut buyers > Create**: code, name, channel, the Sylius customer the sessions log
 in as (mandatory), the buyer's `From` and `Sender` identities (one `domain identity` per line, e.g.
-`NetworkId AN01000000001`), the allowed return domains (`ariba.com` for the domain and its
-subdomains, `*.ariba.com` for the subdomains only) and, if the procurement system shows the shop in
+`NetworkId AN01000000001`), the allowed return hosts (`s1.ariba.com` for exactly this host,
+`*.ariba.com` for its subdomains; never a public suffix such as `*.github.io`) and, if the procurement system shows the shop in
 an iframe, its origins (`https://s1.ariba.com`).
 
 The shared secret is generated on creation and **shown once**. *Generate a new secret* adds one next
@@ -88,6 +89,21 @@ to the current one (rotation without downtime: at most two are active), then rev
 secret imposed by the procurement system can be entered instead (16 characters minimum). Give the
 procurement system your setup URL (`https://<shop>/punchout/cxml`), your supplier identity and the
 secret.
+
+## Behind a proxy or a load balancer
+
+The setup rate limit is per client address: declare your proxies so that Symfony sees the real
+address, without trusting more than them (a forged `X-Forwarded-For` would otherwise bypass it):
+
+```yaml
+# config/packages/framework.yaml
+framework:
+    trusted_proxies: '10.0.0.0/8'   # your proxies / load balancer only
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host']
+```
+
+With several application servers, share the rate limiter storage (for example a Redis cache pool
+for `cache.rate_limiter` and a Redis lock store), otherwise each server counts on its own.
 
 ## Iframe (SAP Ariba)
 
@@ -103,6 +119,11 @@ framework:
         cookie_samesite: none
         cookie_secure: true
 ```
+
+`SameSite=None` applies to the whole session cookie: the browser no longer withholds it on
+cross-site requests, so CSRF protection relies on the CSRF tokens only (Sylius and this plugin use
+them on every state-changing form). Serving the admin on another host or with another session cookie
+keeps it out of this trade-off.
 
 ## Development
 

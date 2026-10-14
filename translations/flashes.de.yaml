@@ -3,5 +3,5 @@ tmonier_punchout:
         session:
             checkout_blocked: 'Bestellt wird in Ihrem Beschaffungssystem: Übertragen Sie Ihren Warenkorb dorthin.'
     secret:
-        too_short: 'Das Secret muss mindestens 16 Zeichen lang sein.'
+        too_short: 'Das Secret muss mindestens 16 Zeichen (höchstens 256) haben und darf nicht aus einem einzigen wiederholten Zeichen bestehen.'
         set: 'Das Secret wurde gespeichert.'

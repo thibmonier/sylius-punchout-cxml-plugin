@@ -175,12 +175,8 @@ final readonly class ReturnUrlValidator
     {
         foreach ($domains as $domain) {
             $domain = strtolower(trim($domain));
-            // "*.ariba.com": the subdomains only; "ariba.com": the domain and its subdomains.
-            if (str_starts_with($domain, '*.')) {
-                if (str_ends_with($host, substr($domain, 1))) {
-                    return true;
-                }
-            } elseif ($domain !== '' && ($host === $domain || str_ends_with($host, '.' . $domain))) {
+            // "*.ariba.com": its subdomains; "ariba.com": exactly this host.
+            if (str_starts_with($domain, '*.') ? str_ends_with($host, substr($domain, 1)) : $host === $domain) {
                 return true;
             }
         }

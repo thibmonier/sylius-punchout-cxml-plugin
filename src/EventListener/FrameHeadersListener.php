@@ -16,6 +16,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
  */
 final readonly class FrameHeadersListener
 {
+    private const ORIGIN = '#^https://([a-z0-9-]+\.)+[a-z][a-z0-9-]+(:\d{1,5})?$#';
+
     public function __construct(private CurrentPunchoutSession $currentPunchoutSession)
     {
     }
@@ -35,7 +37,9 @@ final readonly class FrameHeadersListener
             return;
         }
 
+        // Origins are validated by the admin form; filter them again here, whatever wrote them.
+        $origins = array_filter($buyer->getIframeOrigins(), static fn (string $origin): bool => 1 === preg_match(self::ORIGIN, $origin));
         $response->headers->remove('X-Frame-Options');
-        $response->headers->set('Content-Security-Policy', trim("frame-ancestors 'self' " . implode(' ', $buyer->getIframeOrigins())));
+        $response->headers->set('Content-Security-Policy', trim("frame-ancestors 'self' " . implode(' ', $origins)));
     }
 }

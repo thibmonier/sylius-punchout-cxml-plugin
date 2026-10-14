@@ -47,6 +47,7 @@ final readonly class CxmlEndpointAction
         private UrlGeneratorInterface $urlGenerator,
         private ReplayGuard $replayGuard,
         private RateLimiterFactory $setupLimiter,
+        private RateLimiterFactory $authenticationFailureLimiter,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
     ) {
@@ -97,9 +98,17 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
         }
 
+        // Brute force on one identity is limited whatever the client address (several addresses or
+        // a shared proxy): no Argon2id work once the failure budget of the identity is spent.
+        $failures = $this->authenticationFailureLimiter->create(mb_strtolower($setupData->fromDomain) . '|' . $setupData->fromIdentity);
+        if ($failures->consume(0)->getRemainingTokens() === 0) {
+            return new Response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60', 'Cache-Control' => 'no-store']);
+        }
+
         // Missing or empty SharedSecret → immediate 401 with dummy verify (timing-safe)
         if ($setupData->sharedSecret === '') {
             $this->credentialVerifier->verify('_empty_secret_dummy_', null);
+            $failures->consume();
 
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }
@@ -116,6 +125,8 @@ final readonly class CxmlEndpointAction
 
         // Unknown buyer or wrong secret → 401 (same response to prevent identity enumeration)
         if (!$buyer instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerInterface || !$secretValid) {
+            $failures->consume();
+
             return $this->errorResponse(CxmlStatus::UNAUTHORIZED, 'Unauthorized');
         }
 

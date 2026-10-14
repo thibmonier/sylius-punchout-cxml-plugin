@@ -15,11 +15,13 @@ final class BuyerDomainsAndFrameTest extends WebTestCase
 
     public function testOnlyAReturnUrlOfAnAllowedDomainOpensASession(): void
     {
-        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(returnDomains: ['*.ariba.com']);
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(returnDomains: ['*.ariba.com', 'procurement.example.com']);
 
         $cases = [
             'https://s1.ariba.com/punchout/return' => '200',
             'https://ariba.com/punchout/return' => '403',
+            'https://procurement.example.com/return' => '200',
+            'https://eu.procurement.example.com/return' => '403',
             'https://attacker.example/collect' => '403',
             'https://s1.ariba.com.attacker.example/collect' => '403',
             'http://10.0.0.5/return' => '403',

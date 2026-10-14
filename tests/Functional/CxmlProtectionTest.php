@@ -56,6 +56,29 @@ final class CxmlProtectionTest extends WebTestCase
         self::assertNotSame(429, $this->client->getResponse()->getStatusCode(), 'Other addresses are not limited');
     }
 
+    public function testRepeatedAuthenticationFailuresOfAnIdentityAreLimitedWhateverTheAddress(): void
+    {
+        ['buyer' => $buyer] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: 'bruteforce-' . bin2hex(random_bytes(4)) . '@example.com');
+
+        $statuses = [];
+        for ($i = 1; $i <= 11; ++$i) {
+            $body = $this->postSetup($this->setupRequestXml($buyer, 'wrong-secret-' . $i, 'C'), '198.18.0.' . $i);
+            $statuses[] = $this->client->getResponse()->getStatusCode() === 429 ? '429' : (1 === preg_match('/<Status code="(\d+)"/', $body, $m) ? $m[1] : '?');
+        }
+
+        self::assertSame(array_fill(0, 10, '401'), array_slice($statuses, 0, 10));
+        self::assertSame('429', $statuses[10], 'Brute force on one identity is limited even from many addresses');
+    }
+
+    public function testATimestampWithoutAnAbsoluteDateIsRefused(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();
+
+        foreach (['now', '+1 sec', (new \DateTimeImmutable())->format('Y-m-d H:i:s')] as $timestamp) {
+            self::assertStringContainsString('<Status code="400"', $this->postSetup($this->setupRequestXml($buyer, $secret, 'C', timestamp: $timestamp)), $timestamp);
+        }
+    }
+
     public function testAnUnsupportedOperationIsNotImplemented(): void
     {
         ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();

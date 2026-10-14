@@ -18,6 +18,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\FrameHeadersListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutCartStorageListener;
+use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutSessionEndListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
@@ -75,6 +76,7 @@ return static function (ContainerConfigurator $container): void {
 
     // Security
     $services->set(ReplayGuard::class)
+        ->arg('$connection', service('doctrine.dbal.default_connection'))
         ->arg('$window', '%tmonier_punchout.replay_window%');
     $services->set(ReturnUrlValidator::class)
         ->arg('$insecureHosts', '%tmonier_punchout.insecure_return_url_hosts%');
@@ -111,6 +113,7 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public()
         ->arg('$setupLimiter', service('limiter.tmonier_punchout_setup'))
+        ->arg('$authenticationFailureLimiter', service('limiter.tmonier_punchout_authentication_failure'))
         ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
         ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
 
@@ -141,6 +144,10 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public();
     $services->alias('tmonier_punchout.controller.admin_buyer_secret', BuyerSecretController::class)->public();
+
+    // Shop: logged out of the buyer's shared account once the PunchOut session is over
+    $services->set(PunchoutSessionEndListener::class)
+        ->tag('kernel.event_listener', ['event' => 'kernel.request', 'priority' => 5]);
 
     // Shop: no Sylius checkout during a PunchOut session (US-015)
     $services->set(CheckoutBlockerListener::class)

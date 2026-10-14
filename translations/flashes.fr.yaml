@@ -3,5 +3,5 @@ tmonier_punchout:
         session:
             checkout_blocked: "La commande se passe dans votre outil d'achat : transférez-y votre panier."
     secret:
-        too_short: 'Le secret doit comporter au moins 16 caractères.'
+        too_short: 'Le secret doit comporter au moins 16 caractères (256 au plus) et ne pas répéter un seul caractère.'
         set: 'Le secret a été enregistré.'

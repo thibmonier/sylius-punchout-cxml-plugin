@@ -9,6 +9,7 @@ use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Storage\CartStorageInterface;
 use Sylius\Component\Order\Processor\OrderProcessorInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Csrf\CsrfToken;
@@ -48,6 +49,7 @@ final readonly class TransferAction
         private TwigEnvironment $twig,
         private OrderProcessorInterface $orderProcessor,
         private CartStorageInterface $cartStorage,
+        private Security $security,
         private bool $keepTransferredCarts = false,
         private string $supplierDomain = 'NetworkId',
         private string $supplierIdentity = 'supplier',
@@ -125,6 +127,9 @@ final readonly class TransferAction
         }
 
         $this->entityManager->flush();
+
+        // The shopper used the buyer's shared customer account for the PunchOut session only.
+        $this->security->logout(false);
     }
 
     private function postToReturnUrl(string $returnUrl, string $xmlBase64): Response

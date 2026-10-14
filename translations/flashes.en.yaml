@@ -3,5 +3,5 @@ tmonier_punchout:
         session:
             checkout_blocked: 'Orders are placed in your procurement system: transfer your cart to it.'
     secret:
-        too_short: 'The secret must have at least 16 characters.'
+        too_short: 'The secret must have at least 16 characters (256 at most) and not repeat a single character.'
         set: 'The secret has been saved.'

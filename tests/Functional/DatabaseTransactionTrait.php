@@ -43,6 +43,12 @@ trait DatabaseTransactionTrait
                 $limiter->create($ip)->reset();
             }
         }
+        $failures = static::getContainer()->get('limiter.tmonier_punchout_authentication_failure');
+        if ($failures instanceof RateLimiterFactoryInterface) {
+            foreach (['test-buyer@example.com', 'test-buyer-e2e@example.com'] as $identity) {
+                $failures->create('aribanetworkuserid|' . $identity)->reset();
+            }
+        }
 
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::$entityManager = $em instanceof EntityManagerInterface ? $em : null;

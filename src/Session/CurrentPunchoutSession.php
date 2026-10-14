@@ -33,6 +33,10 @@ final readonly class CurrentPunchoutSession
             return null;
         }
 
+        // Never start a session (anonymous visitors, cacheable pages): only an existing one may hold it.
+        if (!$request->hasSession() || (!$request->hasPreviousSession() && !$request->getSession()->isStarted())) {
+            return null;
+        }
         $session = $request->getSession();
         $id = $session->get(self::SESSION_KEY);
         if ($id === null) {
@@ -66,6 +70,29 @@ final readonly class CurrentPunchoutSession
         }
 
         return $punchoutSession;
+    }
+
+    /**
+     * The PunchOut session referenced by the HTTP session for the logged-in customer of its buyer, but
+     * no longer open (transferred, cancelled, expired): the shopper must not stay logged in.
+     */
+    public function findEnded(): ?PunchoutSession
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        if (!$request instanceof \Symfony\Component\HttpFoundation\Request || !$request->hasPreviousSession()) {
+            return null;
+        }
+        $id = $request->getSession()->get(self::SESSION_KEY);
+        if ($id === null || $this->getCurrent() instanceof \Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession) {
+            return null;
+        }
+        $punchoutSession = $this->entityManager->find(PunchoutSession::class, $id);
+        $user = $this->tokenStorage->getToken()?->getUser();
+        if (!$punchoutSession instanceof PunchoutSession || !$user instanceof ShopUserInterface) {
+            return null;
+        }
+
+        return $user->getCustomer()?->getId() === $punchoutSession->getBuyer()?->getCustomer()?->getId() ? $punchoutSession : null;
     }
 
     public function set(PunchoutSession $session): void

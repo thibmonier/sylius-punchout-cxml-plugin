@@ -3,5 +3,5 @@ tmonier_punchout:
         session:
             checkout_blocked: 'U bestelt in uw inkoopsysteem: draag uw winkelwagen daarheen over.'
     secret:
-        too_short: 'Het geheim moet minstens 16 tekens bevatten.'
+        too_short: 'Het geheim moet minstens 16 tekens hebben (hoogstens 256) en mag niet uit één herhaald teken bestaan.'
         set: 'Het geheim is opgeslagen.'

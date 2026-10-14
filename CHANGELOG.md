@@ -18,5 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setup endpoint rate limited per address (HTTP 429) and protected against replay (`payloadID`, `timestamp` window); malformed requests answer cXML 400, unsupported operations 450 (US-008, US-009)
 - Return domains mandatory, deny by default, `*.domain` form; iframe origins per buyer with CSP `frame-ancestors` during PunchOut sessions (US-004, US-016)
 - Secret rotation (two active secrets), imposed secret, several From / Sender identities (US-002)
+- Authentication failures limited per buyer identity whatever the address; strict ISO 8601 setup timestamps; expired payloadIDs purged; return hosts matched exactly (`*.domain` for subdomains); the shopper is logged out of the buyer account when the PunchOut session ends or expires; imposed secrets of 16 to 256 non-trivial characters
 - Side cart and cart page without Sylius checkout in a PunchOut session (US-014); open sessions expire after `session_lifetime` (US-017)
 - Buyer simulator in TestApplication with cXML round-trip and DTD validation (US-026)

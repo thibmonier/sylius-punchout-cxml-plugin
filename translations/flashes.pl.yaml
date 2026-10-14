@@ -3,5 +3,5 @@ tmonier_punchout:
         session:
             checkout_blocked: 'Zamówienie składa się w systemie zakupowym: prześlij do niego koszyk.'
     secret:
-        too_short: 'Sekret musi mieć co najmniej 16 znaków.'
+        too_short: 'Sekret musi mieć co najmniej 16 znaków (najwyżej 256) i nie może składać się z jednego powtórzonego znaku.'
         set: 'Sekret został zapisany.'

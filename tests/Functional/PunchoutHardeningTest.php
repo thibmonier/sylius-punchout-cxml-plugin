@@ -65,6 +65,9 @@ final class PunchoutHardeningTest extends WebTestCase
         $managed->setEnabled(false);
         $this->entityManager()->flush();
 
+        $this->client->request('GET', '/en_US/');
+        self::assertResponseRedirects('/en_US/logout', null, 'The shopper is logged out of the buyer account');
+        $this->client->followRedirect();
         self::assertNotSame($punchoutCartId, $this->currentCart()['id']);
         $this->client->request('POST', '/punchout/transfer', ['_csrf_token' => $this->getCsrfToken('tmonier_punchout_transfer')]);
         self::assertResponseStatusCodeSame(403);
@@ -83,10 +86,47 @@ final class PunchoutHardeningTest extends WebTestCase
         );
         $this->entityManager()->clear();
 
+        $this->client->request('GET', '/en_US/');
+        self::assertResponseRedirects('/en_US/logout');
+        $this->client->followRedirect();
         self::assertNotSame($punchoutCartId, $this->currentCart()['id']);
         $session = $this->entityManager()->find(PunchoutSession::class, $session->getId());
         self::assertInstanceOf(PunchoutSession::class, $session);
         self::assertSame(PunchoutSession::STATUS_EXPIRED, $session->getStatus());
+    }
+
+    public function testTheShopperIsLoggedOutWhenThePunchoutSessionEnds(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();
+        $this->startPunchout($buyer, $secret);
+        $this->client->request('GET', '/en_US/account/dashboard');
+        self::assertResponseIsSuccessful('Logged in as the buyer customer during the session');
+
+        $this->transfer();
+
+        $this->client->request('GET', '/en_US/account/dashboard');
+        self::assertResponseRedirects();
+        self::assertStringContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
+    }
+
+    public function testTheShopperIsLoggedOutWhenThePunchoutSessionExpires(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer();
+        $this->startPunchout($buyer, $secret);
+        $session = $this->entityManager()->getRepository(PunchoutSession::class)->findOneBy([], ['id' => 'DESC']);
+        self::assertInstanceOf(PunchoutSession::class, $session);
+        $this->entityManager()->getConnection()->executeStatement(
+            'UPDATE tmonier_punchout_session SET created_at = :createdAt WHERE id = :id',
+            ['createdAt' => (new \DateTimeImmutable('-9 hours'))->format('Y-m-d H:i:s'), 'id' => $session->getId()],
+        );
+
+        $this->client->request('GET', '/en_US/account/dashboard');
+        self::assertResponseRedirects('/en_US/logout');
+        $this->client->followRedirect();
+
+        $this->client->request('GET', '/en_US/account/dashboard');
+        self::assertResponseRedirects();
+        self::assertStringContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
     }
 
     public function testABuyerWithoutChannelCannotOpenASession(): void

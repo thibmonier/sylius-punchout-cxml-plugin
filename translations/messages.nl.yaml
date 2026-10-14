@@ -30,7 +30,7 @@ tmonier_punchout:
             customer: 'Sylius-klant (e-mail)'
             customer_help: 'PunchOut-sessies loggen in als deze klant: zijn prijzen en groepen zijn van toepassing.'
             return_domains: 'Toegestane retourdomeinen'
-            return_domains_help: 'Eén domein per regel: ariba.com (het domein en zijn subdomeinen) of *.ariba.com (alleen subdomeinen). Verplicht: de winkelwagen wordt alleen naar deze domeinen gestuurd.'
+            return_domains_help: 'Eén regel per vermelding: s1.ariba.com (precies deze host) of *.ariba.com (de subdomeinen). Verplicht: de winkelwagen wordt alleen naar deze hosts gestuurd.'
             identities: cXML-identiteiten
             iframe_origins: Iframe-origins
             iframe_origins_help: 'Origins die de winkel tijdens een PunchOut-sessie in een iframe mogen tonen, één per regel (bijv. https://s1.ariba.com).'

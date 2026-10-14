@@ -30,7 +30,7 @@ tmonier_punchout:
             customer: 'Cliente Sylius (e-mail)'
             customer_help: 'Le sessioni PunchOut accedono come questo cliente: si applicano i suoi prezzi e gruppi.'
             return_domains: 'Domini di ritorno consentiti'
-            return_domains_help: 'Un dominio per riga: ariba.com (il dominio e i suoi sottodomini) o *.ariba.com (solo sottodomini). Obbligatorio: il carrello viene inviato solo a questi domini.'
+            return_domains_help: 'Una voce per riga: s1.ariba.com (esattamente questo host) o *.ariba.com (i suoi sottodomini). Obbligatorio: il carrello viene inviato solo a questi host.'
             identities: 'Identità cXML'
             iframe_origins: 'Origini iframe'
             iframe_origins_help: 'Origini autorizzate a mostrare il negozio in un iframe durante una sessione PunchOut, una per riga (es. https://s1.ariba.com).'

@@ -1,3 +1,6 @@
+{% if not is_granted('PUNCHOUT_SESSION') %}
+    {{ include('@SyliusShop/shared/layout/base/offcanvas/cart/footer.html.twig') }}
+{% else %}
 {% import "@SyliusShop/shared/macro/money.html.twig" as money %}
 
 {% set cart = hookable_metadata.context.cart %}
@@ -17,3 +20,4 @@
         </div>
     </div>
 </div>
+{% endif %}

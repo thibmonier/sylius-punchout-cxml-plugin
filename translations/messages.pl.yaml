@@ -30,7 +30,7 @@ tmonier_punchout:
             customer: 'Klient Sylius (e-mail)'
             customer_help: 'Sesje PunchOut logują się jako ten klient: obowiązują jego ceny i grupy.'
             return_domains: 'Dozwolone domeny powrotu'
-            return_domains_help: 'Jedna domena w wierszu: ariba.com (domena i jej subdomeny) lub *.ariba.com (tylko subdomeny). Wymagane: koszyk jest wysyłany tylko do tych domen.'
+            return_domains_help: 'Jeden wpis w wierszu: s1.ariba.com (dokładnie ten host) lub *.ariba.com (jego subdomeny). Wymagane: koszyk jest wysyłany tylko do tych hostów.'
             identities: 'Tożsamości cXML'
             iframe_origins: 'Źródła iframe'
             iframe_origins_help: 'Źródła, które mogą wyświetlać sklep w ramce iframe podczas sesji PunchOut, jedno w wierszu (np. https://s1.ariba.com).'

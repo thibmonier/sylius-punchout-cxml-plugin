@@ -1,0 +1,4 @@
+{# Outside a PunchOut session: the Sylius checkout button. In a session the banner offers the transfer. #}
+{% if not is_granted('PUNCHOUT_SESSION') %}
+    {{ include('@SyliusShop/cart/index/content/form/sections/general/checkout.html.twig') }}
+{% endif %}

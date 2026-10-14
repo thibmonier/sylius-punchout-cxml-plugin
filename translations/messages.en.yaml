@@ -30,7 +30,7 @@ tmonier_punchout:
             customer: 'Sylius customer (e-mail)'
             customer_help: 'The PunchOut sessions log in as this customer: their prices and groups apply.'
             return_domains: 'Allowed return domains'
-            return_domains_help: 'One domain per line: ariba.com (the domain and its subdomains) or *.ariba.com (subdomains only). Required: the cart is only sent to these domains.'
+            return_domains_help: 'One entry per line: s1.ariba.com (exactly this host) or *.ariba.com (its subdomains). Required: the cart is only sent to these hosts.'
             identities: 'cXML identities'
             iframe_origins: 'Iframe origins'
             iframe_origins_help: 'Origins allowed to show the shop in an iframe during a PunchOut session, one per line (e.g. https://s1.ariba.com).'
