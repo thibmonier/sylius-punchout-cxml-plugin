@@ -9,8 +9,8 @@ Jaggaer, Oracle…), shop at their own prices and send the cart back to their pu
 > **Status: in development, not released.** Available today: cXML PunchOut `create`, `edit` and
 > `inspect`, `ProfileRequest`, SAP OCI 5.0 entry and return, cart transfer and cancel, UNSPSC codes
 > and units, optional tax and shipping, exchange log — with replay protection, rate limiting and
-> iframe support — buyer admin and buyer simulator. Coming next: GDPR tools (purge, erasure),
-> diagnostic command. Specification and roadmap: [`project-management/`](project-management/).
+> iframe support — buyer admin, buyer simulator, retention purge, GDPR erasure and diagnostic
+> command. Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
 
@@ -101,6 +101,7 @@ tmonier_sylius_punchout_cxml:
     max_request_bytes: 262144        # 256 KiB
     max_items_out: 500               # items of a requisition (edit / inspect)
     log_bodies: false                # keep the masked bodies in the PunchOut log
+    retention_days: 90               # log entries and sessions kept (tmonier:punchout:purge)
     rate_limits:
         setup: { limit: 30, interval: '1 minute' }                                 # per client address
         authentication_failures: { limit: 10, interval: '1 minute' }               # per identity and address
@@ -123,6 +124,21 @@ to the current one (rotation without downtime: at most two are active), then rev
 secret imposed by the procurement system can be entered instead (16 characters minimum). Give the
 procurement system your setup URL (`https://<shop>/punchout/cxml`), your supplier identity and the
 secret.
+
+## Console commands
+
+```bash
+bin/console tmonier:punchout:doctor                 # configuration and buyers check (exit 1 if an enabled buyer cannot be used)
+bin/console tmonier:punchout:purge [--dry-run]      # run daily: deletes the log entries and sessions older than retention_days
+bin/console tmonier:punchout:erase <email> [--dry-run]
+```
+
+`erase` removes the personal data of a person from the PunchOut tables: the Extrinsic values of the
+sessions of the buyers logged in as this Sylius customer or naming the address, and the bodies of
+their log entries (and of any entry showing the address in its masked form, e.g. `c***@bigcorp.example`).
+Rows, dates, types and statuses stay for the statistics. The Sylius customer itself is handled by the
+shop. Carts kept with `keep_transferred_carts` are regular Sylius carts: `sylius:remove-expired-carts`
+removes them.
 
 ## Behind a proxy or a load balancer
 

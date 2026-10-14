@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UNSPSC codes per taxon and product, units of measure, buyer defaults; optional tax and shipping in the returned cart (US-005, US-019)
 - Journal of the exchanges with masked bodies and an admin grid (US-024)
 - SAP OCI 5.0: entry `GET|POST /punchout/oci/{buyerCode}` (username, password as a buyer secret, HOOK_URL checked against the return domains, rate limited), return of the cart as `NEW_ITEM-*` fields with long text and `~` fields, cancel (US-003, US-012, US-020)
+- Console commands `tmonier:punchout:purge` (retention), `tmonier:punchout:erase` (GDPR erasure, statistics kept), both with `--dry-run` (US-025), and `tmonier:punchout:doctor` (session cookie unfit for iframes, incomplete buyers, development settings left on) (US-028)
 
 ### Changed
 

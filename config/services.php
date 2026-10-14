@@ -15,7 +15,13 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\BuyerSecretController;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Command\DoctorCommand;
+use Tmonier\SyliusPunchoutCxmlPlugin\Command\EraseCustomerCommand;
+use Tmonier\SyliusPunchoutCxmlPlugin\Command\PurgeCommand;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\InspectAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Doctor\BuyerChecker;
+use Tmonier\SyliusPunchoutCxmlPlugin\Gdpr\PersonalDataEraser;
+use Tmonier\SyliusPunchoutCxmlPlugin\Gdpr\RetentionPurger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\OciEntryAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciFormWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
@@ -218,6 +224,14 @@ return static function (ContainerConfigurator $container): void {
 
     // Shop: PunchOut session banner
     $services->set(PunchoutExtension::class)->tag('twig.extension');
+
+    // Retention, erasure (US-025) and diagnostic (US-028)
+    $services->set(RetentionPurger::class)->arg('$connection', service('doctrine.dbal.default_connection'));
+    $services->set(PersonalDataEraser::class)->arg('$connection', service('doctrine.dbal.default_connection'));
+    $services->set(BuyerChecker::class);
+    $services->set(PurgeCommand::class)->arg('$retentionDays', '%tmonier_punchout.retention_days%');
+    $services->set(EraseCustomerCommand::class);
+    $services->set(DoctorCommand::class)->arg('$parameters', service('parameter_bag'));
 
     // Fixtures
     $services->set(PunchoutDemoFixture::class)

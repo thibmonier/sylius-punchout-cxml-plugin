@@ -35,7 +35,9 @@ final class OciTest extends WebTestCase
         $this->addToCurrentCart((string) $variant->getCode(), 2);
 
         $fields = $this->returnedFields(['_csrf_token' => $this->getCsrfToken('tmonier_punchout_transfer')], '/punchout/transfer');
-        self::assertSame([
+        // SAP reads the fields by name; the order of the ~ fields follows the JSON storage of the database.
+        ksort($fields);
+        $expected = [
             'NEW_ITEM-DESCRIPTION[1]' => mb_substr((string) $variant->getProduct()?->getName(), 0, 40),
             'NEW_ITEM-QUANTITY[1]' => '2',
             'NEW_ITEM-UNIT[1]' => 'EA',
@@ -45,11 +47,12 @@ final class OciTest extends WebTestCase
             'NEW_ITEM-VENDORMAT[1]' => (string) $variant->getCode(),
             'NEW_ITEM-EXT_PRODUCT_ID[1]' => 'v1:' . $variant->getCode(),
             'NEW_ITEM-LONGTEXT_1:132[]' => (string) $variant->getProduct()?->getName(),
-            // Symfony sorts the query string of a GET entry.
             '~CALLER' => 'CTLG',
             '~OkCode' => 'ADDI',
             '~TARGET' => '_top',
-        ], $fields);
+        ];
+        ksort($expected);
+        self::assertSame($expected, $fields);
         $form = $this->client->getCrawler()->filter('form');
         self::assertSame(self::HOOK, $form->attr('action'));
         self::assertSame('_top', $form->attr('target'));
