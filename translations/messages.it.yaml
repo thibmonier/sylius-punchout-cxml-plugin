@@ -5,6 +5,7 @@ tmonier_punchout:
             help: "Il carrello sarà inviato al tuo sistema di approvvigionamento. L'ordine si effettua lì, non in questo negozio."
             transfer: 'Trasferisci al mio sistema di approvvigionamento'
             cancel: 'Annulla e torna indietro'
+            unavailable: 'Questi articoli non sono più disponibili e sono stati esclusi: %parts%'
         menu:
             buyers: 'Acquirenti PunchOut'
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: oppure
             set: 'Usa questo segreto'
             set_placeholder: 'Segreto imposto dal sistema di approvvigionamento'
+        inspect:
+            title: "Richiesta d'acquisto"
+            help: "Consultazione della richiesta d'acquisto, in sola lettura. Torna al tuo sistema di approvvigionamento per modificarla."
+            unknown: 'Articolo sconosciuto'
+            empty: 'Nessun articolo.'
+            back: 'Torna al mio sistema di approvvigionamento'
     form:
         buyer:
             name: Nome

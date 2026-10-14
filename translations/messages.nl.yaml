@@ -5,6 +5,7 @@ tmonier_punchout:
             help: 'Uw winkelwagen wordt naar uw inkoopsysteem gestuurd. U bestelt daar, niet in deze winkel.'
             transfer: 'Overdragen naar mijn inkoopsysteem'
             cancel: 'Annuleren en teruggaan'
+            unavailable: 'Deze artikelen zijn niet meer beschikbaar en zijn weggelaten: %parts%'
         menu:
             buyers: PunchOut-kopers
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: of
             set: 'Dit geheim gebruiken'
             set_placeholder: 'Geheim opgelegd door het inkoopsysteem'
+        inspect:
+            title: Aanvraag
+            help: 'Alleen-lezen weergave van uw aanvraag. Ga terug naar uw inkoopsysteem om deze te wijzigen.'
+            unknown: 'Onbekend artikel'
+            empty: 'Geen artikel.'
+            back: 'Terug naar mijn inkoopsysteem'
     form:
         buyer:
             name: Naam

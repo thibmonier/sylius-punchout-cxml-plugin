@@ -5,6 +5,7 @@ tmonier_punchout:
             help: 'Your cart will be sent to your procurement system. Orders are placed there, not in this shop.'
             transfer: 'Transfer to my procurement system'
             cancel: 'Cancel and go back'
+            unavailable: 'These items are no longer available and were left out: %parts%'
         menu:
             buyers: 'PunchOut Buyers'
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: or
             set: 'Use this secret'
             set_placeholder: 'Secret imposed by the procurement system'
+        inspect:
+            title: Requisition
+            help: 'Read-only view of your requisition. Go back to your procurement system to change it.'
+            unknown: 'Unknown item'
+            empty: 'No item.'
+            back: 'Back to my procurement system'
     form:
         buyer:
             name: Name

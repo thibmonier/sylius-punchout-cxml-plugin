@@ -5,6 +5,7 @@ tmonier_punchout:
             help: 'Twój koszyk zostanie przesłany do systemu zakupowego. Zamówienie składa się tam, nie w tym sklepie.'
             transfer: 'Prześlij do mojego systemu zakupowego'
             cancel: 'Anuluj i wróć'
+            unavailable: 'Te artykuły nie są już dostępne i zostały pominięte: %parts%'
         menu:
             buyers: 'Nabywcy PunchOut'
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: lub
             set: 'Użyj tego sekretu'
             set_placeholder: 'Sekret narzucony przez system zakupowy'
+        inspect:
+            title: Zapotrzebowanie
+            help: 'Podgląd zapotrzebowania tylko do odczytu. Wróć do systemu zakupowego, aby je zmienić.'
+            unknown: 'Nieznany artykuł'
+            empty: 'Brak artykułów.'
+            back: 'Wróć do mojego systemu zakupowego'
     form:
         buyer:
             name: Nazwa

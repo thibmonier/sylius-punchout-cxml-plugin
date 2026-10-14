@@ -10,10 +10,12 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialHasher;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartContext;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cart\CartRebuilder;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\SecretIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\Admin\BuyerSecretController;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\CxmlEndpointAction;
+use Tmonier\SyliusPunchoutCxmlPlugin\Controller\InspectAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\FrameHeadersListener;
@@ -102,6 +104,12 @@ return static function (ContainerConfigurator $container): void {
     $services->set(PunchoutCartContext::class)
         ->tag('sylius.context.cart', ['priority' => 0]);
     $services->set(PunchoutCartFactory::class);
+    $services->set(CartRebuilder::class)
+        ->arg('$variantRepository', service('sylius.repository.product_variant'))
+        ->arg('$orderItemFactory', service('sylius.factory.order_item'))
+        ->arg('$quantityModifier', service('sylius.modifier.order_item_quantity'))
+        ->arg('$orderModifier', service('sylius.modifier.order'))
+        ->arg('$orderProcessor', service('sylius.order_processing.order_processor'));
 
     // Transfer
     $services->set(NetPriceCalculator::class);
@@ -134,6 +142,11 @@ return static function (ContainerConfigurator $container): void {
     $services->alias('tmonier_punchout.controller.cxml_endpoint', CxmlEndpointAction::class)->public();
     $services->alias('tmonier_punchout.controller.start', StartAction::class)->public();
     $services->alias('tmonier_punchout.controller.transfer', TransferAction::class)->public();
+    $services->set(InspectAction::class)
+        ->arg('$variantRepository', service('sylius.repository.product_variant'))
+        ->tag('controller.service_arguments')
+        ->public();
+    $services->alias('tmonier_punchout.controller.inspect', InspectAction::class)->public();
 
     // Admin: buyer form, first secret on creation, secret regeneration
     $services->set(BuyerType::class)

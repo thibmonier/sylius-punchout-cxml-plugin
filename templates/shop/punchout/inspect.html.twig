@@ -1,0 +1,39 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}{{ 'tmonier_punchout.ui.inspect.title'|trans }} | {{ parent() }}{% endblock %}
+
+{% block content %}
+    <div class="container mb-auto my-4">
+        <div class="alert alert-primary" {{ sylius_test_html_attribute('tmonier-punchout-banner') }}>
+            <div class="fw-bold">{{ 'tmonier_punchout.ui.session.banner'|trans({'%buyer%': punchout_session.buyer.name|default('')}) }}</div>
+            <div class="small">{{ 'tmonier_punchout.ui.inspect.help'|trans }}</div>
+        </div>
+
+        <h1 class="h3 mb-3">{{ 'tmonier_punchout.ui.inspect.title'|trans }}</h1>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{{ 'sylius.ui.code'|trans }}</th>
+                    <th>{{ 'sylius.ui.name'|trans }}</th>
+                    <th class="text-end">{{ 'sylius.ui.quantity'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                    <tr {{ sylius_test_html_attribute('tmonier-punchout-inspect-item') }}>
+                        <td>{{ item.code }}</td>
+                        <td>{{ item.name|default('tmonier_punchout.ui.inspect.unknown'|trans) }}</td>
+                        <td class="text-end">{{ item.quantity }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3">{{ 'tmonier_punchout.ui.inspect.empty'|trans }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="post" action="{{ path('tmonier_punchout_cancel') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_punchout_cancel') }}">
+            <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-punchout-back') }}>{{ 'tmonier_punchout.ui.inspect.back'|trans }}</button>
+        </form>
+    </div>
+{% endblock %}

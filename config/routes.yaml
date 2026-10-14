@@ -28,6 +28,13 @@ tmonier_punchout_transfer:
     controller: tmonier_punchout.controller.transfer
     methods: [POST]
 
+tmonier_punchout_inspect:
+    path: /{_locale}/punchout/inspect
+    controller: tmonier_punchout.controller.inspect
+    methods: [GET]
+    requirements:
+        _locale: '^[A-Za-z]{2,4}(_([A-Za-z]{4}|[0-9]{3}))?(_([A-Za-z]{2}|[0-9]{3}))?$'
+
 tmonier_punchout_cancel:
     path: /punchout/cancel
     controller: tmonier_punchout.controller.transfer

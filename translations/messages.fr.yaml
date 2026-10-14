@@ -5,6 +5,7 @@ tmonier_punchout:
             help: "Votre panier sera renvoyé dans votre outil d'achat. La commande se passe dans cet outil, pas dans cette boutique."
             transfer: "Transférer vers mon outil d'achat"
             cancel: 'Annuler et revenir'
+            unavailable: 'Ces articles ne sont plus disponibles et ont été retirés : %parts%'
         menu:
             buyers: 'Acheteurs PunchOut'
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: ou
             set: 'Utiliser ce secret'
             set_placeholder: "Secret imposé par l'outil d'achat"
+        inspect:
+            title: Réquisition
+            help: "Consultation de votre réquisition, en lecture seule. Revenez dans votre outil d'achat pour la modifier."
+            unknown: 'Article inconnu'
+            empty: 'Aucun article.'
+            back: "Revenir à mon outil d'achat"
     form:
         buyer:
             name: Nom

@@ -10,7 +10,9 @@ use Sylius\Component\Core\Model\CustomerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cart\CartRebuilder;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cart\PunchoutCartFactory;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\ShopperAuthenticator;
@@ -28,12 +30,16 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
  */
 final readonly class StartAction
 {
+    /** Part numbers of an edited requisition that are no longer sold (US-022). */
+    public const FLASH_UNAVAILABLE = 'tmonier_punchout_unavailable';
+
     public function __construct(
         private StartTokenConsumer $tokenConsumer,
         private ShopperAuthenticator $shopperAuthenticator,
         private PunchoutCartFactory $punchoutCartFactory,
         private UrlGeneratorInterface $urlGenerator,
         private EntityManagerInterface $entityManager,
+        private CartRebuilder $cartRebuilder,
     ) {
     }
 
@@ -87,13 +93,25 @@ final readonly class StartAction
             $cart = $this->punchoutCartFactory->create($customer, $channel);
             $this->entityManager->persist($cart);
             $session->setCart($cart);
+
+            // US-022: an edited requisition comes back as the cart.
+            if ($session->getOperation() === 'edit') {
+                $leftOut = $this->cartRebuilder->rebuild($cart, $session->getItemsOut());
+                $httpSession = $request->getSession();
+                if ($leftOut !== [] && $httpSession instanceof FlashBagAwareSessionInterface) {
+                    $httpSession->getFlashBag()->set(self::FLASH_UNAVAILABLE, $leftOut);
+                }
+            }
         }
 
         $this->entityManager->flush();
 
-        // Redirect to the shop
-        $shopUrl = $this->urlGenerator->generate('sylius_shop_homepage');
+        $locale = $channel?->getDefaultLocale()?->getCode() ?? $request->getLocale();
 
-        return new RedirectResponse($shopUrl);
+        return new RedirectResponse(match ($session->getOperation()) {
+            'edit' => $this->urlGenerator->generate('sylius_shop_cart_summary', ['_locale' => $locale]),
+            'inspect' => $this->urlGenerator->generate('tmonier_punchout_inspect', ['_locale' => $locale]),
+            default => $this->urlGenerator->generate('sylius_shop_homepage', ['_locale' => $locale]),
+        });
     }
 }

@@ -5,6 +5,7 @@ tmonier_punchout:
             help: 'Ihr Warenkorb wird an Ihr Beschaffungssystem übertragen. Bestellt wird dort, nicht in diesem Shop.'
             transfer: 'An mein Beschaffungssystem übertragen'
             cancel: 'Abbrechen und zurückkehren'
+            unavailable: 'Diese Artikel sind nicht mehr verfügbar und wurden entfernt: %parts%'
         menu:
             buyers: PunchOut-Käufer
         secret:
@@ -19,6 +20,12 @@ tmonier_punchout:
             or: oder
             set: 'Dieses Secret verwenden'
             set_placeholder: 'Vom Beschaffungssystem vorgegebenes Secret'
+        inspect:
+            title: Bedarfsanforderung
+            help: 'Schreibgeschützte Ansicht Ihrer Bedarfsanforderung. Ändern Sie sie in Ihrem Beschaffungssystem.'
+            unknown: 'Unbekannter Artikel'
+            empty: 'Kein Artikel.'
+            back: 'Zurück zu meinem Beschaffungssystem'
     form:
         buyer:
             name: Name

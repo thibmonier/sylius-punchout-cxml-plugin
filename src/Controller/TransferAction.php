@@ -85,7 +85,8 @@ final readonly class TransferAction
             $cart = null;
         }
         $lines = [];
-        if (!$cancel && $cart instanceof OrderInterface) {
+        // Inspecting a requisition never sends items back (US-023).
+        if (!$cancel && $session->getOperation() !== 'inspect' && $cart instanceof OrderInterface) {
             $this->orderProcessor->process($cart);
             $lines = $this->transferLineExtractor->extract($cart);
         }
