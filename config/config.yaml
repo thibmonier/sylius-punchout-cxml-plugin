@@ -2,6 +2,12 @@ imports:
     - { resource: "grids/*.yaml" }
     - { resource: "twig_hooks/**/*.yaml" }
 
+# Defaults: set PUNCHOUT_SUPPLIER_DOMAIN and PUNCHOUT_SUPPLIER_IDENTITY to your identity in the
+# procurement network (the `tmonier:punchout:doctor` command warns while it is still "supplier").
+parameters:
+    env(PUNCHOUT_SUPPLIER_DOMAIN): 'NetworkId'
+    env(PUNCHOUT_SUPPLIER_IDENTITY): 'supplier'
+
 tmonier_sylius_punchout_cxml:
     supplier_identity:
         domain: '%env(PUNCHOUT_SUPPLIER_DOMAIN)%'

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-15
+
+### Fixed
+
+- `PUNCHOUT_SUPPLIER_DOMAIN` and `PUNCHOUT_SUPPLIER_IDENTITY` default to `NetworkId` and `supplier`: the plugin configuration no longer fails when they are not set
+- README: the installation imports the plugin configuration (admin grids, twig hooks), and the configuration example uses the supplier variables of the plugin
+
 ## [1.1.0] - 2026-10-15
 
 ### Added
@@ -44,6 +51,7 @@ First release.
 - OCI entry by POST only unless `oci_allow_get`; an OCI buyer cannot authenticate on the cXML endpoint
 - Journal bodies only for authenticated senders, masked on the parsed document (secrets, Extrinsic outside the allowed list, contacts and addresses, e-mail addresses)
 
-[Unreleased]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/releases/tag/v1.0.0

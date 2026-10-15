@@ -104,6 +104,12 @@ Tmonier\SyliusPunchoutCxmlPlugin\TmonierSyliusPunchoutCxmlPlugin::class => ['all
 ```
 
 ```yaml
+# config/packages/tmonier_punchout.yaml — admin grids, twig hooks and default supplier identity
+imports:
+    - { resource: "@TmonierSyliusPunchoutCxmlPlugin/config/config.yaml" }
+```
+
+```yaml
 # config/routes/tmonier_punchout.yaml
 tmonier_sylius_punchout_cxml:
     resource: "@TmonierSyliusPunchoutCxmlPlugin/config/routes.yaml"
@@ -119,8 +125,8 @@ php bin/console doctrine:migrations:migrate
 # config/packages/tmonier_punchout.yaml
 tmonier_sylius_punchout_cxml:
     supplier_identity:               # your identity in the messages sent back (From / Sender)
-        domain: 'NetworkId'
-        identity: '%env(PUNCHOUT_SUPPLIER_ID)%'
+        domain: '%env(PUNCHOUT_SUPPLIER_DOMAIN)%'      # defaults to NetworkId
+        identity: '%env(PUNCHOUT_SUPPLIER_IDENTITY)%'  # defaults to "supplier": set your Ariba Network ID or equivalent
     start_token_ttl: 300             # seconds
     session_lifetime: 28800          # seconds an open PunchOut session lasts
     replay_window: 900               # accepted clock skew of the setup timestamp, in seconds
