@@ -56,6 +56,29 @@ final class OciFormWriter
     }
 
     /**
+     * Parameters of the oci_transfer template.
+     *
+     * @param list<array{string, string}> $fields
+     * @param array<string, string> $context
+     *
+     * @return array{fields: list<array{string, string}>, target: string, charset: string}
+     */
+    public function formParameters(array $fields, array $context): array
+    {
+        return ['fields' => $fields, 'target' => $this->target($context), 'charset' => $this->charset($context)];
+    }
+
+    /**
+     * The fields as logged, one "name=value" line each.
+     *
+     * @param list<array{string, string}> $fields
+     */
+    public static function asText(array $fields): string
+    {
+        return implode("\n", array_map(static fn (array $field): string => $field[0] . '=' . $field[1], $fields));
+    }
+
+    /**
      * The frame the form is posted to: `returntarget`, else `~TARGET`, else `_top`.
      *
      * @param array<string, string> $context

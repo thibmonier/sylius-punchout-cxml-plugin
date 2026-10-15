@@ -34,7 +34,8 @@ final readonly class SessionStarter
     ) {
     }
 
-    public function start(PunchoutSession $session, Request $request): Response
+    /** @param string|null $target page to open instead of the one of the operation (OCI DETAIL) */
+    public function start(PunchoutSession $session, Request $request, ?string $target = null): Response
     {
         try {
             $this->shopperAuthenticator->authenticate($session, $request);
@@ -71,7 +72,7 @@ final readonly class SessionStarter
         $this->entityManager->flush();
 
         $locale = $channel?->getDefaultLocale()?->getCode() ?? $request->getLocale();
-        $response = new RedirectResponse(match ($session->getOperation()) {
+        $response = new RedirectResponse($target ?? match ($session->getOperation()) {
             'edit' => $this->urlGenerator->generate('sylius_shop_cart_summary', ['_locale' => $locale]),
             'inspect' => $this->urlGenerator->generate('tmonier_punchout_inspect', ['_locale' => $locale]),
             default => $this->urlGenerator->generate('sylius_shop_homepage', ['_locale' => $locale]),

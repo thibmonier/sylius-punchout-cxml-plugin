@@ -15,6 +15,7 @@ use Tmonier\SyliusCompanyAccountsPlugin\Entity\CompanyMember;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\OciEntryAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
+use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 
 /** US-003 (OCI credentials), US-012 (OCI entry) and US-020 (OCI return) for SAP SRM / S4. */
 final class OciTest extends WebTestCase
@@ -59,6 +60,48 @@ final class OciTest extends WebTestCase
         $form = $this->client->getCrawler()->filter('form');
         self::assertSame(self::HOOK, $form->attr('action'));
         self::assertSame('_top', $form->attr('target'));
+    }
+
+    public function testValidateSendsTheItemBackAtTheCurrentPriceWithoutOpeningASession(): void
+    {
+        $catalog = new TestCatalog(self::getContainer());
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = $catalog->createOciBuyer();
+        $channel = $buyer->getChannel();
+        self::assertInstanceOf(ChannelInterface::class, $channel);
+        $catalog->withoutPromotions($channel);
+        $variant = $catalog->createVariant($channel, 4200);
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK, 'FUNCTION' => 'VALIDATE', 'PRODUCTID' => 'v1:' . $variant->getCode(), 'QUANTITY' => '3', '~OkCode' => 'ADDI']);
+
+        self::assertResponseIsSuccessful();
+        $fields = $this->hiddenFields();
+        self::assertSame(['42.00', '3', 'v1:' . $variant->getCode(), 'ADDI'], [$fields['NEW_ITEM-PRICE[1]'] ?? null, $fields['NEW_ITEM-QUANTITY[1]'] ?? null, $fields['NEW_ITEM-EXT_PRODUCT_ID[1]'] ?? null, $fields['~OkCode'] ?? null]);
+        self::assertSame(self::HOOK, $this->client->getCrawler()->filter('form')->attr('action'));
+        self::assertSame(0, $this->entityManager()->getRepository(PunchoutSession::class)->count(['buyer' => $buyer]), 'VALIDATE opens no session');
+    }
+
+    public function testValidateOfAnItemNoLongerSoldSendsNoItem(): void
+    {
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = (new TestCatalog(self::getContainer()))->createOciBuyer();
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK, 'FUNCTION' => 'VALIDATE', 'PRODUCTID' => 'v1:UNKNOWN']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], array_filter(array_keys($this->hiddenFields()), static fn (string $name): bool => str_starts_with($name, 'NEW_ITEM')));
+    }
+
+    public function testDetailOpensTheProductPageInAPunchoutSession(): void
+    {
+        $catalog = new TestCatalog(self::getContainer());
+        ['buyer' => $buyer, 'username' => $username, 'password' => $password] = $catalog->createOciBuyer();
+        $channel = $buyer->getChannel();
+        self::assertInstanceOf(ChannelInterface::class, $channel);
+        $variant = $catalog->createVariant($channel, 1000);
+
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK, 'FUNCTION' => 'DETAIL', 'PRODUCTID' => 'v1:' . $variant->getCode()]);
+
+        self::assertResponseRedirects('/en_US/products/' . $variant->getProduct()?->getSlug(), 303);
+        self::assertSame(1, $this->entityManager()->getRepository(PunchoutSession::class)->count(['buyer' => $buyer, 'status' => PunchoutSession::STATUS_ACTIVE]));
     }
 
     public function testAGetEntryIsRefusedByDefault(): void
@@ -127,8 +170,8 @@ final class OciTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
         $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => 'https://attacker.example/hook']);
         self::assertResponseStatusCodeSame(403);
-        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK, 'FUNCTION' => 'DETAIL']);
-        self::assertResponseStatusCodeSame(400, 'OCI functions come with v1.1');
+        $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK, 'FUNCTION' => 'SOURCING']);
+        self::assertResponseStatusCodeSame(400, 'Only the VALIDATE and DETAIL functions are supported');
     }
 
     public function testLongDescriptionsAreCutForSapAndSentInFullAsLongText(): void
@@ -173,6 +216,17 @@ final class OciTest extends WebTestCase
 
         $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => $password, 'HOOK_URL' => self::HOOK]);
         self::assertResponseStatusCodeSame(403);
+    }
+
+    /** @return array<string, string> */
+    private function hiddenFields(): array
+    {
+        $fields = [];
+        $this->client->getCrawler()->filter('form input[type="hidden"]')->each(static function (Crawler $input) use (&$fields): void {
+            $fields[(string) $input->attr('name')] = (string) $input->attr('value');
+        });
+
+        return $fields;
     }
 
     private function entityManager(): EntityManagerInterface

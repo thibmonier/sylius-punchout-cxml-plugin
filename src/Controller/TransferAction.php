@@ -26,8 +26,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Security\ReturnUrlValidator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\CurrentPunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\NetPriceCalculator;
+use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\ReturnFormResponder;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\TransferLineExtractor;
-use Twig\Environment as TwigEnvironment;
 
 /**
  * POST /punchout/transfer and POST /punchout/cancel (route default `cancel: true`).
@@ -52,12 +52,12 @@ final readonly class TransferAction
         private EntityManagerInterface $entityManager,
         private CsrfTokenManagerInterface $csrfTokenManager,
         private ReturnUrlValidator $returnUrlValidator,
-        private TwigEnvironment $twig,
         private OrderProcessorInterface $orderProcessor,
         private CartStorageInterface $cartStorage,
         private Security $security,
         private MessageLogger $messageLogger,
         private OciFormWriter $ociFormWriter,
+        private ReturnFormResponder $returnFormResponder,
         private bool $keepTransferredCarts = false,
         private string $supplierDomain = 'NetworkId',
         private string $supplierIdentity = 'supplier',
@@ -107,18 +107,14 @@ final readonly class TransferAction
                 'OciTransfer',
                 $payloadId,
                 200,
-                implode("\n", array_map(static fn (array $field): string => $field[0] . '=' . $field[1], $fields)),
+                OciFormWriter::asText($fields),
                 $session->getBuyer(),
                 $session,
                 protocol: MessageLog::PROTOCOL_OCI,
             );
             $this->close($session, $cart, $status);
 
-            return $this->postToReturnUrl($returnUrl, 'oci_transfer', [
-                'fields' => $fields,
-                'target' => $this->ociFormWriter->target($ociContext),
-                'charset' => $this->ociFormWriter->charset($ociContext),
-            ]);
+            return $this->returnFormResponder->respond($returnUrl, 'oci_transfer', $this->ociFormWriter->formParameters($fields, $ociContext));
         }
 
         $xml = $this->orderMessageWriter->write(
@@ -138,7 +134,7 @@ final readonly class TransferAction
         $this->messageLogger->log(MessageLog::DIRECTION_OUT, 'PunchOutOrderMessage', $payloadId, 200, $xml, $session->getBuyer(), $session);
         $this->close($session, $cart, $status);
 
-        return $this->postToReturnUrl($returnUrl, 'transfer', ['xmlBase64' => base64_encode($xml)]);
+        return $this->returnFormResponder->respond($returnUrl, 'transfer', ['xmlBase64' => base64_encode($xml)]);
     }
 
     /** Language of the descriptions and, when the buyer wants them (US-019), tax and shipping without tax. */
@@ -188,33 +184,6 @@ final readonly class TransferAction
 
         // The shopper used the buyer's shared customer account for the PunchOut session only.
         $this->security->logout(false);
-    }
-
-    /** @param array<string, mixed> $parameters */
-    private function postToReturnUrl(string $returnUrl, string $template, array $parameters): Response
-    {
-        $nonce = base64_encode(random_bytes(16));
-        $parts = parse_url($returnUrl);
-        $origin = sprintf(
-            '%s://%s%s',
-            is_array($parts) ? ($parts['scheme'] ?? 'https') : 'https',
-            is_array($parts) ? ($parts['host'] ?? '') : '',
-            is_array($parts) && isset($parts['port']) ? ':' . $parts['port'] : '',
-        );
-
-        $response = new Response($this->twig->render('@TmonierSyliusPunchoutCxmlPlugin/punchout/' . $template . '.html.twig', [
-            'returnUrl' => $returnUrl,
-            'nonce' => $nonce,
-        ] + $parameters), Response::HTTP_OK, ['Content-Type' => 'text/html; charset=UTF-8']);
-        $response->headers->set('Cache-Control', 'no-store');
-        $response->headers->set('Referrer-Policy', 'no-referrer');
-        $response->headers->set('Content-Security-Policy', sprintf(
-            "default-src 'none'; script-src 'nonce-%s'; form-action %s; base-uri 'none'",
-            $nonce,
-            $origin,
-        ));
-
-        return $response;
     }
 
     private function plain(string $message, int $status): Response

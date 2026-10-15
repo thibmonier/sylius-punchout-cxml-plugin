@@ -25,6 +25,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Gdpr\PersonalDataEraser;
 use Tmonier\SyliusPunchoutCxmlPlugin\Gdpr\RetentionPurger;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\OciEntryAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciFormWriter;
+use Tmonier\SyliusPunchoutCxmlPlugin\Oci\OciFunctions;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\BuyerSecretListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\CheckoutBlockerListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\FrameHeadersListener;
@@ -65,6 +66,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\ShopperAuthenticator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenConsumer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\NetPriceCalculator;
+use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\ReturnFormResponder;
 use Tmonier\SyliusPunchoutCxmlPlugin\Transfer\TransferLineExtractor;
 
 return static function (ContainerConfigurator $container): void {
@@ -149,6 +151,7 @@ return static function (ContainerConfigurator $container): void {
 
     // Transfer
     $services->set(NetPriceCalculator::class);
+    $services->set(ReturnFormResponder::class);
     $services->set(ItemClassifier::class);
     $services->set(ClassificationManager::class);
     $services->set(ClassificationType::class)->tag('form.type');
@@ -191,6 +194,7 @@ return static function (ContainerConfigurator $container): void {
 
     // OCI (US-012, US-020)
     $services->set(OciFormWriter::class);
+    $services->set(OciFunctions::class);
     $services->set(OciEntryAction::class)
         ->tag('controller.service_arguments')
         ->public()

@@ -59,8 +59,13 @@ at once, no start URL.
 category when the item has one and the full description in `NEW_ITEM-LONGTEXT_n:132[]`; the `~`
 fields received at the entry (`~OkCode`, `~TARGET`, `~CALLER`) are sent back. The form targets
 `returntarget`, else `~TARGET`, else `_top`, in the charset `http_content_charset` (UTF-8 by default).
-*Cancel* sends no item. OCI functions (`FUNCTION=DETAIL`, `VALIDATE`, `SOURCING`…) are refused
-(HTTP 400) for now.
+*Cancel* sends no item.
+
+OCI functions (same credentials and `HOOK_URL`): `FUNCTION=VALIDATE` with `PRODUCTID` (the
+`EXT_PRODUCT_ID` sent by the transfer) and `QUANTITY` sends the item straight back at the buyer's
+current price, without opening a session (no item when it is no longer sold); `FUNCTION=DETAIL` with
+`PRODUCTID` opens its product page in a PunchOut session. Other functions (`SOURCING`,
+`BACKGROUND_SEARCH`…) are refused (HTTP 400).
 
 ## Requisitions, classification and log
 
