@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `PUNCHOUT_SUPPLIER_DOMAIN` and `PUNCHOUT_SUPPLIER_IDENTITY` default to `NetworkId` and `supplier`: the plugin configuration no longer fails when they are not set
+- Admin menu icons use the `tabler:` prefix required by UX Icons
 - README: the installation imports the plugin configuration (admin grids, twig hooks), and the configuration example uses the supplier variables of the plugin
 
 ## [1.1.0] - 2026-10-15
