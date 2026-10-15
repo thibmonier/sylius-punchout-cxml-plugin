@@ -56,6 +56,8 @@ final class BuyerType extends AbstractResourceType
         private readonly EntityManagerInterface $entityManager,
         private readonly TranslatorInterface $translator,
         private readonly ?CompanyDirectoryInterface $companyDirectory = null,
+        private readonly ?RepositoryInterface $paymentMethodRepository = null,
+        private readonly ?RepositoryInterface $shippingMethodRepository = null,
     ) {
         parent::__construct($dataClass, $validationGroups);
     }
@@ -113,6 +115,20 @@ final class BuyerType extends AbstractResourceType
                 'help' => 'tmonier_punchout.form.classification.unspsc_help',
                 'required' => false,
                 'constraints' => [new Regex(pattern: '/^\d{8}$/', message: 'tmonier_punchout.classification.unspsc')],
+            ])
+            ->add('orderPaymentMethod', ChoiceType::class, [
+                'label' => 'tmonier_punchout.form.buyer.order_payment_method',
+                'help' => 'tmonier_punchout.form.buyer.order_payment_method_help',
+                'required' => false,
+                'choices' => $this->methodChoices($this->paymentMethodRepository),
+                'choice_translation_domain' => false,
+            ])
+            ->add('orderShippingMethod', ChoiceType::class, [
+                'label' => 'tmonier_punchout.form.buyer.order_shipping_method',
+                'help' => 'tmonier_punchout.form.buyer.order_shipping_method_help',
+                'required' => false,
+                'choices' => $this->methodChoices($this->shippingMethodRepository),
+                'choice_translation_domain' => false,
             ])
             ->add('includeTax', CheckboxType::class, ['label' => 'tmonier_punchout.form.buyer.include_tax', 'required' => false])
             ->add('includeShipping', CheckboxType::class, ['label' => 'tmonier_punchout.form.buyer.include_shipping', 'required' => false])
@@ -176,6 +192,26 @@ final class BuyerType extends AbstractResourceType
 
         $builder->addEventListener(FormEvents::POST_SET_DATA, $this->fillIdentities(...));
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->applyIdentities(...));
+    }
+
+    /**
+     * Enabled payment or shipping methods, "name (code)" by code (US-030).
+     *
+     * @param RepositoryInterface<\Sylius\Resource\Model\ResourceInterface>|null $repository
+     *
+     * @return array<string, string>
+     */
+    private function methodChoices(?RepositoryInterface $repository): array
+    {
+        $choices = [];
+        foreach ($repository?->findBy(['enabled' => true]) ?? [] as $method) {
+            if ($method instanceof \Sylius\Resource\Model\CodeAwareInterface && method_exists($method, 'getName') && is_string($method->getCode())) {
+                $name = $method->getName();
+                $choices[sprintf('%s (%s)', is_string($name) ? $name : $method->getCode(), $method->getCode())] = $method->getCode();
+            }
+        }
+
+        return $choices;
     }
 
     /** US-006: the customer of a buyer attached to a company is an active member of this company. */

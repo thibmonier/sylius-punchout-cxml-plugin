@@ -171,6 +171,27 @@ final class BuyerAdminTest extends WebTestCase
         self::assertSame($companies['member']->getCode(), $this->buyer($code)->getCompanyId());
     }
 
+    public function testThePaymentAndShippingMethodsOfPurchaseOrdersAreSet(): void
+    {
+        $catalog = new TestCatalog(self::getContainer());
+        ['buyer' => $buyer] = $catalog->createBuyerWithCustomer(fromIdentity: 'methods-' . bin2hex(random_bytes(4)) . '@bigcorp.example');
+        $methods = $catalog->enableOrderRequests($buyer);
+        $buyer->setOrderPaymentMethod(null);
+        $buyer->setOrderShippingMethod(null);
+        $this->entityManager()->flush();
+        $this->loginAdmin();
+
+        $crawler = $this->client->request('GET', sprintf('/admin/punchout-buyers/%d/edit', (int) $buyer->getId()));
+        $form = $crawler->filter('form[name="tmonier_punchout_buyer"]')->form();
+        $form['tmonier_punchout_buyer[orderPaymentMethod]'] = $methods['payment'];
+        $form['tmonier_punchout_buyer[orderShippingMethod]'] = $methods['shipping'];
+        $this->client->submit($form);
+
+        self::assertTrue($this->client->getResponse()->isRedirect(), $this->errors());
+        $saved = $this->buyer($buyer->getCode());
+        self::assertSame([$methods['payment'], $methods['shipping']], [$saved->getOrderPaymentMethod(), $saved->getOrderShippingMethod()]);
+    }
+
     private function submitCreateForm(string $code, string $fromIdentity, ?string $customer = null, string $returnDomains = "ariba.example.com\n", string $iframeOrigins = '', string $protocol = 'cxml', string $ociUsername = '', ?string $company = null): void
     {
         $crawler = $this->client->request('GET', '/admin/punchout-buyers/new');

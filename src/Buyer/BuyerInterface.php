@@ -73,6 +73,14 @@ interface BuyerInterface extends ResourceInterface
 
     public function setDefaultUnspsc(?string $defaultUnspsc): void;
 
+    public function getOrderPaymentMethod(): ?string;
+
+    public function setOrderPaymentMethod(?string $orderPaymentMethod): void;
+
+    public function getOrderShippingMethod(): ?string;
+
+    public function setOrderShippingMethod(?string $orderShippingMethod): void;
+
     public function isIncludeTax(): bool;
 
     public function setIncludeTax(bool $includeTax): void;

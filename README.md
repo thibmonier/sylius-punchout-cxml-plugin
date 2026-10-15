@@ -31,6 +31,19 @@ URL must be HTTPS and match one of the buyer's allowed domains (deny by default)
 setup time and again before the cart is sent. An open PunchOut session expires after
 `session_lifetime`.
 
+## Purchase orders (cXML OrderRequest)
+
+Once the requisition is approved, the procurement system can post the purchase order
+(`OrderRequest`) to the same endpoint. It is accepted only for buyers with a **payment method of
+purchase orders** (e.g. an offline "on account" method; optional shipping method, else the first one
+available for the delivery address). The order is created as a regular Sylius order (number, stock,
+e-mails), with the `ShipTo` / `BillTo` addresses and the purchase order number in its notes:
+
+- one order per buyer and `orderID`: a repost answers 200 with the same order;
+- an item no longer sold, or a net unit price (or currency) different from the purchase order,
+  refuses the whole purchase order (cXML 400, lines named): the buyer starts a PunchOut `edit` again;
+- `update` and `delete` purchase orders are not handled (450). See [ADR-0008](docs/adr/0008-order-request.md).
+
 ## SAP OCI
 
 A buyer with the **OCI** protocol enters with `POST https://<shop>/punchout/oci/<buyer code>` and the

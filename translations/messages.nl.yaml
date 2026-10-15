@@ -61,6 +61,10 @@ tmonier_punchout:
             oci_username_help: 'Alleen OCI-kopers: de USERNAME die SAP verstuurt. Het PASSWORD is het geheim van de koper. Instap-URL: /punchout/oci/<code>.'
             company: Bedrijf
             company_help: 'Bedrijfsaccounts: de gekoppelde klant moet een actief lid van dit bedrijf zijn.'
+            order_payment_method: 'Betaalmethode van inkooporders'
+            order_payment_method_help: 'cXML OrderRequest: orders uit het inkoopsysteem gebruiken deze methode (bijvoorbeeld op rekening). Leeg: inkooporders worden geweigerd.'
+            order_shipping_method: 'Verzendmethode van inkooporders'
+            order_shipping_method_help: 'Leeg: de eerste verzendmethode die beschikbaar is voor het afleveradres.'
         classification:
             unspsc: 'UNSPSC-code (PunchOut)'
             unspsc_help: '8 cijfers, bijv. 56101504. Producten erven de code van hun hoofdtaxon of de bovenliggende taxons.'

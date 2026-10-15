@@ -15,6 +15,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\CxmlParseException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\UnsupportedOperationException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\XmlLoadException;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderRequestReader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupRequestReader;
@@ -22,6 +23,8 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SetupResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\LoggedExchange;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\MessageLogger;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\OrderRequestHandler;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\OrderRequestRejected;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\AuthenticationThrottle;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\InvalidReturnUrlException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Security\RateLimitKeys;
@@ -33,7 +36,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Session\StartTokenIssuer;
 /**
  * POST /punchout/cxml
  *
- * Processes cXML PunchOutSetupRequest messages.
+ * Processes cXML PunchOutSetupRequest, ProfileRequest and OrderRequest messages.
  *
  * CRITICAL: This action MUST NEVER touch the Symfony session.
  * No Set-Cookie header must be emitted.
@@ -55,6 +58,8 @@ final readonly class CxmlEndpointAction
         private RateLimiterFactory $setupLimiter,
         private AuthenticationThrottle $throttle,
         private MessageLogger $messageLogger,
+        private OrderRequestReader $orderRequestReader,
+        private OrderRequestHandler $orderRequestHandler,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
     ) {
@@ -129,7 +134,7 @@ final readonly class CxmlEndpointAction
         $exchange->messageType = $requestName;
         $exchange->payloadId = $header->payloadId;
         $exchange->identity = mb_strtolower($header->fromDomain) . '|' . $header->fromIdentity;
-        if (!in_array($requestName, ['PunchOutSetupRequest', 'ProfileRequest'], true)) {
+        if (!in_array($requestName, ['PunchOutSetupRequest', 'ProfileRequest', 'OrderRequest'], true)) {
             return $this->errorResponse(CxmlStatus::OPERATION_FAILED, 'Not Implemented');
         }
 
@@ -168,6 +173,10 @@ final readonly class CxmlEndpointAction
                 $this->urlGenerator->generate('tmonier_punchout_cxml_endpoint', [], UrlGeneratorInterface::ABSOLUTE_URL),
                 $request->getHost(),
             ));
+        }
+
+        if ($requestName === 'OrderRequest') {
+            return $this->orderRequest($doc, $buyer, $header->payloadId);
         }
 
         try {
@@ -209,6 +218,20 @@ final readonly class CxmlEndpointAction
         $xml = $this->responseWriter->write($startUrl, $hostname);
 
         return $this->xmlResponse($xml, Response::HTTP_OK);
+    }
+
+    /** US-030: the approved purchase order becomes a Sylius order (ADR-0008). */
+    private function orderRequest(\DOMDocument $doc, Buyer $buyer, string $payloadId): Response
+    {
+        try {
+            $number = $this->orderRequestHandler->handle($buyer, $this->orderRequestReader->read($doc), $payloadId);
+        } catch (CxmlParseException $exception) {
+            return $this->errorResponse(CxmlStatus::BAD_REQUEST, mb_substr($exception->getMessage(), 0, 200));
+        } catch (OrderRequestRejected $exception) {
+            return $this->errorResponse($exception->getCxmlStatus(), $exception->getMessage());
+        }
+
+        return $this->xmlResponse($this->responseWriter->writeStatus(CxmlStatus::OK, 'OK', 'Order ' . $number));
     }
 
     private function tooManyRequests(): Response

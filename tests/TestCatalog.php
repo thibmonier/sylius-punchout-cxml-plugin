@@ -270,6 +270,69 @@ final readonly class TestCatalog
     }
 
     /**
+     * Lets the buyer send OrderRequests (US-030): a zone with France, a free shipping method and an
+     * offline payment method of the buyer's channel, configured on the buyer. Returns their codes.
+     *
+     * @return array{shipping: string, payment: string}
+     */
+    public function enableOrderRequests(BuyerInterface $buyer): array
+    {
+        $em = $this->container->get(EntityManagerInterface::class);
+        $channel = $buyer->getChannel();
+        if (!$channel instanceof ChannelInterface) {
+            throw new \LogicException('The buyer has no channel');
+        }
+        $suffix = strtoupper(bin2hex(random_bytes(4)));
+
+        $country = $this->container->get('sylius.repository.country')->findOneBy(['code' => 'FR']);
+        if (!$country instanceof \Sylius\Component\Addressing\Model\CountryInterface) {
+            /** @var \Sylius\Component\Addressing\Model\CountryInterface $country */
+            $country = $this->container->get('sylius.factory.country')->createNew();
+            $country->setCode('FR');
+            $em->persist($country);
+        }
+        /** @var ZoneInterface $zone */
+        $zone = $this->container->get('sylius.factory.zone')->createNew();
+        $zone->setCode('PO_SHIP_' . $suffix);
+        $zone->setName('PunchOut shipping zone');
+        $zone->setType(ZoneInterface::TYPE_COUNTRY);
+        /** @var \Sylius\Component\Addressing\Model\ZoneMemberInterface $member */
+        $member = $this->container->get('sylius.factory.zone_member')->createNew();
+        $member->setCode('FR');
+        $zone->addMember($member);
+        $em->persist($zone);
+
+        /** @var \Sylius\Component\Core\Model\ShippingMethodInterface $shipping */
+        $shipping = $this->container->get('sylius.factory.shipping_method')->createNew();
+        $shipping->setCode('PO_SHIP_' . $suffix);
+        $shipping->setCurrentLocale('en_US');
+        $shipping->setFallbackLocale('en_US');
+        $shipping->setName('PunchOut delivery');
+        $shipping->setZone($zone);
+        $shipping->setCalculator('flat_rate');
+        $shipping->setConfiguration([(string) $channel->getCode() => ['amount' => 0]]);
+        $shipping->addChannel($channel);
+        $shipping->setPosition(-1000);
+        $em->persist($shipping);
+
+        /** @var \Sylius\Component\Core\Model\PaymentMethodInterface $payment */
+        $payment = $this->container->get('sylius.factory.payment_method')->createWithGateway('offline');
+        $payment->setCode('PO_PAY_' . $suffix);
+        $payment->setCurrentLocale('en_US');
+        $payment->setFallbackLocale('en_US');
+        $payment->setName('On account');
+        $payment->getGatewayConfig()?->setGatewayName('po_pay_' . strtolower($suffix));
+        $payment->addChannel($channel);
+        $em->persist($payment);
+
+        $buyer->setOrderPaymentMethod((string) $payment->getCode());
+        $buyer->setOrderShippingMethod((string) $shipping->getCode());
+        $em->flush();
+
+        return ['shipping' => (string) $shipping->getCode(), 'payment' => (string) $payment->getCode()];
+    }
+
+    /**
      * Takes the channel out of every cart promotion (random fixtures), so prices are the catalog prices.
      * Rolled back with the test transaction.
      */

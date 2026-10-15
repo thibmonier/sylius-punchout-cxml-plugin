@@ -9,3 +9,4 @@
 | [0005](0005-prix-et-totaux.md) | Prix et totaux renvoyés hors taxes et hors port | Accepté |
 | [0006](0006-iframe.md) | Iframe : en-têtes par session, cookie à la charge de l'application | Accepté |
 | [0007](0007-inspect-sans-panier.md) | inspect sans panier | Accepté |
+| [0008](0008-order-request.md) | Réception des OrderRequest | Accepté |

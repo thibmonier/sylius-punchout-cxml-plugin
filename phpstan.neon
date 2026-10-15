@@ -44,6 +44,9 @@ parameters:
         -
             identifier: property.unusedType
             path: src/Log/MessageLog.php
+        -
+            identifier: property.unusedType
+            path: src/Order/ReceivedPurchaseOrder.php
         # Doctrine Collection PHPDoc false positives: contains()/filter()->toArray() are not always-false/empty
         # PHPStan loses the BuyerCredential type through Collection<int,BuyerCredential>::filter() generics
         -

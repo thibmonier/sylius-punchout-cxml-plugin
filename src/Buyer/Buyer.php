@@ -44,6 +44,12 @@ class Buyer implements BuyerInterface, \Stringable
 
     private string $defaultUnit = 'EA';
 
+    /** US-030: payment method code of the orders received by OrderRequest (none: OrderRequests refused). */
+    private ?string $orderPaymentMethod = null;
+
+    /** US-030: shipping method code of those orders (none: the first eligible method). */
+    private ?string $orderShippingMethod = null;
+
     private ?string $defaultUnspsc = null;
 
     /** @var Collection<int, BuyerIdentity> */
@@ -201,6 +207,26 @@ class Buyer implements BuyerInterface, \Stringable
     public function setDefaultUnspsc(?string $defaultUnspsc): void
     {
         $this->defaultUnspsc = $defaultUnspsc;
+    }
+
+    public function getOrderPaymentMethod(): ?string
+    {
+        return $this->orderPaymentMethod;
+    }
+
+    public function setOrderPaymentMethod(?string $orderPaymentMethod): void
+    {
+        $this->orderPaymentMethod = $orderPaymentMethod;
+    }
+
+    public function getOrderShippingMethod(): ?string
+    {
+        return $this->orderShippingMethod;
+    }
+
+    public function setOrderShippingMethod(?string $orderShippingMethod): void
+    {
+        $this->orderShippingMethod = $orderShippingMethod;
     }
 
     public function isIncludeTax(): bool

@@ -25,6 +25,8 @@
         <field name="defaultUnit" type="string" length="8" nullable="false" column="default_unit">
             <options><option name="default">EA</option></options>
         </field>
+        <field name="orderPaymentMethod" type="string" length="255" nullable="true" column="order_payment_method"/>
+        <field name="orderShippingMethod" type="string" length="255" nullable="true" column="order_shipping_method"/>
         <field name="defaultUnspsc" type="string" length="16" nullable="true" column="default_unspsc"/>
         <field name="includeTax" type="boolean" nullable="false" column="include_tax">
             <options><option name="default">0</option></options>

@@ -61,6 +61,12 @@ final readonly class SetupResponseWriter
      */
     public function writeError(int $code, string $text, string $hostname = 'localhost'): string
     {
+        return $this->writeStatus($code, $text, $text, $hostname);
+    }
+
+    /** Writes a response carrying only a Status (OrderRequest answers, errors). */
+    public function writeStatus(int $code, string $text, string $message = '', string $hostname = 'localhost'): string
+    {
         $doc = new \DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = true;
 
@@ -74,7 +80,9 @@ final readonly class SetupResponseWriter
         $cxml->appendChild($response);
 
         $status = $doc->createElement('Status');
-        $status->appendChild($doc->createTextNode($text));
+        if ($message !== '') {
+            $status->appendChild($doc->createTextNode($message));
+        }
         $status->setAttribute('code', (string) $code);
         $status->setAttribute('text', $text);
         $response->appendChild($status);

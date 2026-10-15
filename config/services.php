@@ -41,6 +41,10 @@ use Tmonier\SyliusPunchoutCxmlPlugin\Form\Extension\TaxonClassificationExtension
 use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\ClassificationType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ItemClassifierInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderMessageWriter;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderRequestReader;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\AddressFactory;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\OrderBuilder;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\OrderRequestHandler;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\PayloadIdGenerator;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\ProfileResponseWriter;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\SafeXmlLoader;
@@ -79,6 +83,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(SetupResponseWriter::class);
     $services->set(ProfileResponseWriter::class);
     $services->set(OrderMessageWriter::class);
+    $services->set(OrderRequestReader::class)->arg('$maxItemsOut', '%tmonier_punchout.max_items_out%');
 
     // Named aliases for backwards-compatible service IDs
     $services->alias('tmonier_punchout.cxml.safe_xml_loader', SafeXmlLoader::class)->public();
@@ -195,7 +200,7 @@ return static function (ContainerConfigurator $container): void {
 
     // Admin: buyer form, first secret on creation, secret regeneration
     $services->set(BuyerType::class)
-        ->args(['%tmonier_punchout.model.buyer.class%', ['Default'], service('sylius.repository.customer'), service('doctrine.orm.entity_manager'), service('translator'), service(CompanyDirectoryInterface::class)->nullOnInvalid()])
+        ->args(['%tmonier_punchout.model.buyer.class%', ['Default'], service('sylius.repository.customer'), service('doctrine.orm.entity_manager'), service('translator'), service(CompanyDirectoryInterface::class)->nullOnInvalid(), service('sylius.repository.payment_method'), service('sylius.repository.shipping_method')])
         ->tag('form.type');
     $services->set(SecretIssuer::class);
     $services->set(BuyerSecretListener::class)
@@ -226,6 +231,15 @@ return static function (ContainerConfigurator $container): void {
 
     // Shop: PunchOut session banner
     $services->set(PunchoutExtension::class)->tag('twig.extension');
+
+    // OrderRequest (US-030, ADR-0008)
+    $services->set(AddressFactory::class)->arg('$addressFactory', service('sylius.factory.address'));
+    $services->set(OrderBuilder::class)
+        ->arg('$orderProcessor', service('sylius.order_processing.order_processor'))
+        ->arg('$shippingMethodsResolver', service('sylius.resolver.shipping_methods'))
+        ->arg('$paymentMethodRepository', service('sylius.repository.payment_method'))
+        ->arg('$stateMachine', service('sylius_abstraction.state_machine'));
+    $services->set(OrderRequestHandler::class);
 
     // Retention, erasure (US-025) and diagnostic (US-028)
     $services->set(RetentionPurger::class)->arg('$connection', service('doctrine.dbal.default_connection'));

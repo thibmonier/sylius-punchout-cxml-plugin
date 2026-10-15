@@ -61,6 +61,10 @@ tmonier_punchout:
             oci_username_help: 'Solo compradores OCI: el USERNAME enviado por SAP. El PASSWORD es el secreto del comprador. URL de entrada: /punchout/oci/<code>.'
             company: Empresa
             company_help: 'Cuentas de empresa: el cliente vinculado debe ser un miembro activo de esta empresa.'
+            order_payment_method: 'Método de pago de los pedidos de compra'
+            order_payment_method_help: 'OrderRequest cXML: los pedidos recibidos de la herramienta de compras usan este método (por ejemplo, a cuenta). Vacío: los pedidos de compra se rechazan.'
+            order_shipping_method: 'Método de envío de los pedidos de compra'
+            order_shipping_method_help: 'Vacío: el primer método de envío disponible para la dirección de entrega.'
         classification:
             unspsc: 'Código UNSPSC (PunchOut)'
             unspsc_help: '8 dígitos, p. ej. 56101504. Los productos heredan el código de su taxón principal o de sus padres.'
