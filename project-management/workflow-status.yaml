@@ -96,7 +96,7 @@ phases:
     sprint_005:
       status: done           # v1.1 : US-030 (OrderRequest), US-031 (OCI VALIDATE), US-032 (OCI DETAIL)
       review: sprints/sprint-005/review-findings.md   # 3 majeurs (stock, quantités, rejeu avant idempotence) corrigés
-      next: release v1.1.0 sur accord de l'utilisateur
+      release: v1.1.0 publiée le 2026-10-15 (CI 8/8 sur 70585f9, Packagist)
 
 constraints:
   - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier
