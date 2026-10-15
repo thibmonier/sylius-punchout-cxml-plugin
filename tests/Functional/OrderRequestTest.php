@@ -49,6 +49,78 @@ final class OrderRequestTest extends WebTestCase
         self::assertSame(1, $this->countOrders($orderId), 'A reposted purchase order creates no new order');
     }
 
+    public function testTheVerySameDocumentSentAgainGetsTheSameOrder(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+        $xml = $this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]);
+
+        $first = $this->postSetup($xml);
+        $second = $this->postSetup($xml);
+
+        self::assertStringContainsString('<Status code="200"', $second, 'A transport retry (same payloadID) is not a replay');
+        self::assertSame($this->orderNumberIn($first), $this->orderNumberIn($second));
+        self::assertSame(1, $this->countOrders($orderId));
+    }
+
+    public function testAnOrderIdReusedWithAnotherContentIsRefused(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+        $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
+
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 3, '12.50']]));
+
+        self::assertStringContainsString('<Status code="400"', $body);
+        self::assertStringContainsString('different content', $body);
+    }
+
+    public function testQuantitiesOutsideTheAcceptedRangeAreRefused(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $code = (string) $variant->getCode();
+
+        foreach (['20000', '2.5', '0'] as $quantity) {
+            self::assertStringContainsString('<Status code="400"', $this->postSetup($this->orderRequestXml($buyer, $secret, 'PO-Q' . bin2hex(random_bytes(3)), [[$code, $quantity, '12.50']])), $quantity);
+        }
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, 'PO-QQ' . bin2hex(random_bytes(3)), [[$code, 6000, '12.50'], [$code, 6000, '12.50']]));
+        self::assertStringContainsString('<Status code="400"', $body, 'Repeated lines are not capped silently');
+    }
+
+    public function testAnItemOutOfStockRefusesThePurchaseOrder(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $variant->setTracked(true);
+        $variant->setOnHand(5);
+        $this->entityManager()->flush();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 10, '12.50']]));
+
+        self::assertStringContainsString('<Status code="400"', $body);
+        self::assertStringContainsString('Insufficient stock', $body);
+        self::assertSame(0, $this->countOrders($orderId));
+    }
+
+    public function testACountryTheShopDoesNotServeIsRefused(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, 'PO-' . bin2hex(random_bytes(4)), [[(string) $variant->getCode(), 1, '12.50']], billToCountry: 'ZZ'));
+
+        self::assertStringContainsString('<Status code="400"', $body);
+        self::assertStringContainsString('BillTo country ZZ', $body);
+    }
+
+    public function testATestPurchaseOrderCreatesNoOrder(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+
+        self::assertStringContainsString('<Status code="450"', $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']], mode: 'test')));
+        self::assertSame(0, $this->countOrders($orderId));
+    }
+
     public function testAPurchaseOrderAtAnOutdatedPriceIsRefused(): void
     {
         ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
@@ -116,8 +188,8 @@ final class OrderRequestTest extends WebTestCase
         return ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant, 'methods' => $methods];
     }
 
-    /** @param list<array{string, int, string}> $lines part number, quantity, unit price */
-    private function orderRequestXml(Buyer $buyer, string $secret, string $orderId, array $lines, string $type = 'new'): string
+    /** @param list<array{string, int|string, string}> $lines part number, quantity, unit price */
+    private function orderRequestXml(Buyer $buyer, string $secret, string $orderId, array $lines, string $type = 'new', string $mode = 'production', string $billToCountry = 'FR', ?string $payloadId = null): string
     {
         $identity = static function (string $role) use ($buyer): BuyerIdentity {
             foreach ($buyer->getIdentities() as $identity) {
@@ -131,13 +203,13 @@ final class OrderRequestTest extends WebTestCase
         $from = $identity(BuyerIdentity::ROLE_FROM);
         $sender = $identity(BuyerIdentity::ROLE_SENDER);
         $timestamp = (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339);
-        $payloadId = bin2hex(random_bytes(8)) . '@test.local';
+        $payloadId ??= bin2hex(random_bytes(8)) . '@test.local';
         $currency = (string) $buyer->getChannel()?->getBaseCurrency()?->getCode();
-        $total = number_format(array_sum(array_map(static fn (array $line): float => $line[1] * (float) $line[2], $lines)), 2, '.', '');
+        $total = number_format(array_sum(array_map(static fn (array $line): float => (float) $line[1] * (float) $line[2], $lines)), 2, '.', '');
         $items = '';
         foreach ($lines as $index => [$part, $quantity, $price]) {
             $items .= sprintf(
-                '<ItemOut quantity="%d" lineNumber="%d"><ItemID><SupplierPartID>%s</SupplierPartID><SupplierPartAuxiliaryID>v1:%s</SupplierPartAuxiliaryID></ItemID><ItemDetail><UnitPrice><Money currency="%s">%s</Money></UnitPrice><Description xml:lang="en">Item</Description><UnitOfMeasure>EA</UnitOfMeasure></ItemDetail></ItemOut>',
+                '<ItemOut quantity="%s" lineNumber="%d"><ItemID><SupplierPartID>%s</SupplierPartID><SupplierPartAuxiliaryID>v1:%s</SupplierPartAuxiliaryID></ItemID><ItemDetail><UnitPrice><Money currency="%s">%s</Money></UnitPrice><Description xml:lang="en">Item</Description><UnitOfMeasure>EA</UnitOfMeasure></ItemDetail></ItemOut>',
                 $quantity,
                 $index + 1,
                 $part,
@@ -146,11 +218,11 @@ final class OrderRequestTest extends WebTestCase
                 $price,
             );
         }
-        $address = static fn (string $id, string $name, string $deliverTo, string $street, string $city, string $postcode): string => <<<XML
-            <Address isoCountryCode="FR" addressID="{$id}"><Name xml:lang="fr">{$name}</Name><PostalAddress><DeliverTo>{$deliverTo}</DeliverTo><Street>{$street}</Street><City>{$city}</City><PostalCode>{$postcode}</PostalCode><Country isoCountryCode="FR">France</Country></PostalAddress></Address>
+        $address = static fn (string $id, string $name, string $deliverTo, string $street, string $city, string $postcode, string $country = 'FR'): string => <<<XML
+            <Address isoCountryCode="{$country}" addressID="{$id}"><Name xml:lang="fr">{$name}</Name><PostalAddress><DeliverTo>{$deliverTo}</DeliverTo><Street>{$street}</Street><City>{$city}</City><PostalCode>{$postcode}</PostalCode><Country isoCountryCode="{$country}">France</Country></PostalAddress></Address>
             XML;
         $shipTo = $address('S1', 'BigCorp Logistique', 'Claire Martin', '12 rue de la Paix', 'Paris', '75002');
-        $billTo = $address('B1', 'BigCorp SA', 'Paul Durand', '1 avenue des Comptes', 'Lyon', '69001');
+        $billTo = $address('B1', 'BigCorp SA', 'Paul Durand', '1 avenue des Comptes', 'Lyon', '69001', $billToCountry);
 
         return <<<XML
             <?xml version="1.0" encoding="UTF-8"?>
@@ -161,7 +233,7 @@ final class OrderRequestTest extends WebTestCase
                     <To><Credential domain="NetworkId"><Identity>supplier</Identity></Credential></To>
                     <Sender><Credential domain="{$sender->getDomain()}"><Identity>{$sender->getIdentity()}</Identity><SharedSecret>{$secret}</SharedSecret></Credential><UserAgent>Test</UserAgent></Sender>
                 </Header>
-                <Request deploymentMode="test">
+                <Request deploymentMode="{$mode}">
                     <OrderRequest>
                         <OrderRequestHeader orderID="{$orderId}" orderDate="{$timestamp}" type="{$type}">
                             <Total><Money currency="{$currency}">{$total}</Money></Total>
@@ -173,6 +245,15 @@ final class OrderRequestTest extends WebTestCase
                 </Request>
             </cXML>
             XML;
+    }
+
+    private function orderNumberIn(string $body): string
+    {
+        if (1 !== preg_match('/Order (\S+)</', $body, $matches)) {
+            self::fail($body);
+        }
+
+        return $matches[1];
     }
 
     private function order(string $orderId): OrderInterface

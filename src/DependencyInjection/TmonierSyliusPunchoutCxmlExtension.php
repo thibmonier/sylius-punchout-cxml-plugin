@@ -79,7 +79,7 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
 
         // Rate limiters — only if symfony/rate-limiter is available
         if (class_exists(RateLimiterFactory::class)) {
-            /** @var array{rate_limits: array{setup: array{limit: int, interval: string}, authentication_failures: array{limit: int, interval: string}, authentication_failures_per_identity: array{limit: int, interval: string}, oci_entry: array{limit: int, interval: string}}} $limits */
+            /** @var array{rate_limits: array{setup: array{limit: int, interval: string}, authentication_failures: array{limit: int, interval: string}, authentication_failures_per_identity: array{limit: int, interval: string}, oci_entry: array{limit: int, interval: string}, order_requests: array{limit: int, interval: string}}} $limits */
             $limits = $this->processConfiguration(new Configuration(), array_map(
                 static fn (array $c): array => isset($c['rate_limits']) ? ['rate_limits' => $c['rate_limits']] : [],
                 $container->getExtensionConfig($this->getAlias()),
@@ -96,6 +96,7 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
                 'tmonier_punchout_setup' => $limiter($limits['rate_limits']['setup']['limit'], $limits['rate_limits']['setup']['interval']),
                 'tmonier_punchout_authentication_failure' => $limiter($limits['rate_limits']['authentication_failures']['limit'], $limits['rate_limits']['authentication_failures']['interval']),
                 'tmonier_punchout_identity_failure' => $limiter($limits['rate_limits']['authentication_failures_per_identity']['limit'], $limits['rate_limits']['authentication_failures_per_identity']['interval']),
+                'tmonier_punchout_order_request' => $limiter($limits['rate_limits']['order_requests']['limit'], $limits['rate_limits']['order_requests']['interval']),
                 'tmonier_punchout_oci_entry' => $limiter($limits['rate_limits']['oci_entry']['limit'], $limits['rate_limits']['oci_entry']['interval']),
             ]]);
         }

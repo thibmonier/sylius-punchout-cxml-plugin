@@ -169,6 +169,7 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public()
         ->arg('$setupLimiter', service('limiter.tmonier_punchout_setup'))
+        ->arg('$orderRequestLimiter', service('limiter.tmonier_punchout_order_request'))
         ->arg('$maxRequestBytes', '%tmonier_punchout.max_request_bytes%')
         ->arg('$startTokenTtl', '%tmonier_punchout.start_token_ttl%');
 
@@ -242,6 +243,8 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$orderProcessor', service('sylius.order_processing.order_processor'))
         ->arg('$shippingMethodsResolver', service('sylius.resolver.shipping_methods'))
         ->arg('$paymentMethodRepository', service('sylius.repository.payment_method'))
+        ->arg('$countryRepository', service('sylius.repository.country'))
+        ->arg('$availabilityChecker', service(\Sylius\Component\Inventory\Checker\AvailabilityCheckerInterface::class))
         ->arg('$stateMachine', service('sylius_abstraction.state_machine'));
     $services->set(OrderRequestHandler::class);
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Order;
 
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
+use Sylius\Component\Addressing\Model\CountryInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
@@ -13,6 +14,7 @@ use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShipmentInterface;
 use Sylius\Component\Core\OrderCheckoutStates;
 use Sylius\Component\Core\OrderCheckoutTransitions;
+use Sylius\Component\Inventory\Checker\AvailabilityCheckerInterface;
 use Sylius\Component\Order\Processor\OrderProcessorInterface;
 use Sylius\Component\Shipping\Model\ShippingMethodInterface;
 use Sylius\Component\Shipping\Resolver\ShippingMethodsResolverInterface;
@@ -39,6 +41,7 @@ final readonly class OrderBuilder
 
     /**
      * @param RepositoryInterface<PaymentMethodInterface> $paymentMethodRepository
+     * @param RepositoryInterface<CountryInterface> $countryRepository
      */
     public function __construct(
         private PunchoutCartFactory $cartFactory,
@@ -48,6 +51,8 @@ final readonly class OrderBuilder
         private OrderProcessorInterface $orderProcessor,
         private ShippingMethodsResolverInterface $shippingMethodsResolver,
         private RepositoryInterface $paymentMethodRepository,
+        private RepositoryInterface $countryRepository,
+        private AvailabilityCheckerInterface $availabilityChecker,
         private StateMachineInterface $stateMachine,
     ) {
     }
@@ -55,14 +60,16 @@ final readonly class OrderBuilder
     public function build(BuyerInterface $buyer, OrderRequestData $request): OrderInterface
     {
         $order = $this->itemsOrder($buyer, $request);
-        $order->setShippingAddress($this->addressFactory->create($request->shipTo, 'ShipTo'));
-        $order->setBillingAddress($this->addressFactory->create($request->billTo, 'BillTo'));
-        $order->setNotes(trim(sprintf("PunchOut purchase order %s\n%s", $request->orderId, $request->comments)));
+        $this->checkQuantitiesAndStock($order, $request);
+        $order->setShippingAddress($this->address($request->shipTo, 'ShipTo', $order));
+        $order->setBillingAddress($this->address($request->billTo, 'BillTo', $order));
+        $order->setNotes('PunchOut purchase order ' . $request->orderId . ($request->comments !== '' ? "\nBuyer comments: " . $request->comments : ''));
         $this->orderProcessor->process($order);
-        $this->checkPrices($order, $request);
         $this->chooseShipping($order, $buyer);
         $this->choosePayment($order, $buyer);
         $this->orderProcessor->process($order);
+        // Checked on the final amounts (a promotion may depend on the shipping or payment method).
+        $this->checkPrices($order, $request);
         $this->complete($order);
 
         return $order;
@@ -82,6 +89,47 @@ final readonly class OrderBuilder
         }
 
         return $order;
+    }
+
+    /**
+     * Every line ordered in full (no silent cap of repeated lines) and in stock: the state machine holds
+     * the inventory without checking it, as the shop checkout controllers do.
+     */
+    private function checkQuantitiesAndStock(OrderInterface $order, OrderRequestData $request): void
+    {
+        $requested = [];
+        foreach ($request->items as $item) {
+            $requested[$item->variantCode] = ($requested[$item->variantCode] ?? 0) + $item->quantity;
+        }
+        $short = [];
+        foreach ($order->getItems() as $orderItem) {
+            /** @var OrderItemInterface $orderItem */
+            $variant = $orderItem->getVariant();
+            $code = (string) $variant?->getCode();
+            if (($requested[$code] ?? 0) !== $orderItem->getQuantity()) {
+                throw new OrderRequestRejected(sprintf('Quantity of %s not accepted (9999 at most per item)', mb_substr($code, 0, 40)));
+            }
+            if ($variant !== null && !$this->availabilityChecker->isStockSufficient($variant, $orderItem->getQuantity())) {
+                $short[] = mb_substr($code, 0, 40);
+            }
+        }
+        if ($short !== []) {
+            throw new OrderRequestRejected('Insufficient stock: ' . implode(', ', array_slice($short, 0, 20)));
+        }
+    }
+
+    /** The country must be enabled and, when the channel lists countries, one of them (taxes, shipping). */
+    private function address(\Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlAddress $source, string $role, OrderInterface $order): \Sylius\Component\Core\Model\AddressInterface
+    {
+        $country = $this->countryRepository->findOneBy(['code' => $source->countryCode]);
+        $channel = $order->getChannel();
+        $allowed = $country instanceof CountryInterface && $country->isEnabled() &&
+            (!$channel instanceof ChannelInterface || $channel->getCountries()->isEmpty() || $channel->hasCountry($country));
+        if (!$allowed) {
+            throw new OrderRequestRejected(sprintf('%s country %s is not served', $role, $source->countryCode));
+        }
+
+        return $this->addressFactory->create($source, $role);
     }
 
     /** The purchase order is refused when a Sylius net unit price (or the currency) differs from it. */

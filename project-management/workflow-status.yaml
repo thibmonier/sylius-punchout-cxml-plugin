@@ -93,6 +93,10 @@ phases:
       status: done           # US-003, 012, 020 (OCI), 025 (purge, effacement), 028 (doctor), 006 (company-accounts)
       review: sprints/sprint-004/review-findings.md   # 2 majeurs (GET OCI, DoS par budget d'identité) corrigés, m1 accepté
     release: v1.0.0 publiée le 2026-10-14 (CI 8/8 sur 190c4a4)
+    sprint_005:
+      status: done           # v1.1 : US-030 (OrderRequest), US-031 (OCI VALIDATE), US-032 (OCI DETAIL)
+      review: sprints/sprint-005/review-findings.md   # 3 majeurs (stock, quantités, rejeu avant idempotence) corrigés
+      next: release v1.1.0 sur accord de l'utilisateur
 
 constraints:
   - publié en MIT, packagist tmonier/sylius-punchout-cxml-plugin, GitHub thibmonier

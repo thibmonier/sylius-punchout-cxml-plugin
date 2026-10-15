@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - cXML `OrderRequest`: the approved purchase order becomes a Sylius order (opt-in per buyer with a payment method of purchase orders, one order per buyer and `orderID`, refused when an item is no longer sold or a price changed) (US-030, ADR-0008)
+- Purchase orders checked for stock, quantities (1 to 9999, repeated lines included), served countries and `deploymentMode="test"`; idempotent before the replay guard, content fingerprint per `orderID`; `rate_limits.order_requests` per buyer; unexpected errors answered as cXML 500 and logged
 - OCI functions `VALIDATE` (item sent back at the current price, no session) and `DETAIL` (product page in a PunchOut session) (US-031, US-032)
 
 ## [1.0.0] - 2026-10-14

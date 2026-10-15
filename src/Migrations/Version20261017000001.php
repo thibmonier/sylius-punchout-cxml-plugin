@@ -27,6 +27,7 @@ final class Version20261017000001 extends AbstractMigration
         $table->addColumn('buyer_id', Types::INTEGER, ['notnull' => true]);
         $table->addColumn('purchase_order', Types::STRING, ['length' => 100, 'notnull' => true]);
         $table->addColumn('order_id', Types::INTEGER, ['notnull' => false]);
+        $table->addColumn('content_hash', Types::STRING, ['length' => 64, 'notnull' => true]);
         $table->addColumn('payload_id', Types::STRING, ['length' => 255, 'notnull' => true]);
         $table->addColumn('created_at', Types::DATETIME_IMMUTABLE, ['notnull' => true]);
         $table->setPrimaryKey(['id']);

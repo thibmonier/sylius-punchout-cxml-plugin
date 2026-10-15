@@ -39,10 +39,16 @@ purchase orders** (e.g. an offline "on account" method; optional shipping method
 available for the delivery address). The order is created as a regular Sylius order (number, stock,
 e-mails), with the `ShipTo` / `BillTo` addresses and the purchase order number in its notes:
 
-- one order per buyer and `orderID`: a repost answers 200 with the same order;
-- an item no longer sold, or a net unit price (or currency) different from the purchase order,
-  refuses the whole purchase order (cXML 400, lines named): the buyer starts a PunchOut `edit` again;
-- `update` and `delete` purchase orders are not handled (450). See [ADR-0008](docs/adr/0008-order-request.md).
+- one order per buyer and `orderID`: a repost — even of the very same document after a timeout —
+  answers 200 with the same order; the same `orderID` with another content is refused (400);
+- an item no longer sold or out of stock, a quantity outside 1 to 9999, a country the channel does
+  not serve, or a net unit price (or currency) different from the purchase order refuses the whole
+  purchase order (cXML 400, lines named): the buyer starts a PunchOut `edit` again;
+- `update` / `delete` purchase orders and `deploymentMode="test"` documents create no order (450);
+- at most `rate_limits.order_requests` new purchase orders per buyer (60 per hour by default).
+
+The shared secret of such a buyer can now place orders on account: keep it as safe as a payment
+credential. See [ADR-0008](docs/adr/0008-order-request.md).
 
 ## SAP OCI
 
@@ -126,6 +132,7 @@ tmonier_sylius_punchout_cxml:
         authentication_failures: { limit: 10, interval: '1 minute' }               # per identity and address
         authentication_failures_per_identity: { limit: 50, interval: '1 minute' }  # per identity, all addresses: further failures get 429, right credentials still pass
         oci_entry: { limit: 30, interval: '1 minute' }                             # OCI entries per client address
+        order_requests: { limit: 60, interval: '1 hour' }                          # new purchase orders per buyer
     keep_transferred_carts: false
     oci_allow_get: false             # accept the OCI entry by GET (not recommended)
     allowed_extrinsics: [UserEmail, UniqueName, CostCenter]

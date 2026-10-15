@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -11,6 +12,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerResolver;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
+use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlHeader;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\CxmlParseException;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\Exception\UnsupportedOperationException;
@@ -60,6 +62,8 @@ final readonly class CxmlEndpointAction
         private MessageLogger $messageLogger,
         private OrderRequestReader $orderRequestReader,
         private OrderRequestHandler $orderRequestHandler,
+        private RateLimiterFactory $orderRequestLimiter,
+        private LoggerInterface $logger,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
     ) {
@@ -163,6 +167,11 @@ final readonly class CxmlEndpointAction
             return $this->errorResponse(CxmlStatus::FORBIDDEN, 'Forbidden');
         }
 
+        // A purchase order is idempotent by orderID: a repost of the very same document is answered too.
+        if ($requestName === 'OrderRequest') {
+            return $this->orderRequest($doc, $buyer, $header);
+        }
+
         // Anti-replay: timestamp within the window, payloadID never accepted for this buyer
         if (!$this->replayGuard->accept($buyer, $header->payloadId, $header->timestamp)) {
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
@@ -173,10 +182,6 @@ final readonly class CxmlEndpointAction
                 $this->urlGenerator->generate('tmonier_punchout_cxml_endpoint', [], UrlGeneratorInterface::ABSOLUTE_URL),
                 $request->getHost(),
             ));
-        }
-
-        if ($requestName === 'OrderRequest') {
-            return $this->orderRequest($doc, $buyer, $header->payloadId);
         }
 
         try {
@@ -220,15 +225,32 @@ final readonly class CxmlEndpointAction
         return $this->xmlResponse($xml, Response::HTTP_OK);
     }
 
-    /** US-030: the approved purchase order becomes a Sylius order (ADR-0008). */
-    private function orderRequest(\DOMDocument $doc, Buyer $buyer, string $payloadId): Response
+    /**
+     * US-030: the approved purchase order becomes a Sylius order (ADR-0008). A known purchase order is
+     * answered before the replay guard; a new one goes through it and the per-buyer limit.
+     */
+    private function orderRequest(\DOMDocument $doc, Buyer $buyer, CxmlHeader $header): Response
     {
         try {
-            $number = $this->orderRequestHandler->handle($buyer, $this->orderRequestReader->read($doc), $payloadId);
+            $data = $this->orderRequestReader->read($doc);
+            $number = $this->orderRequestHandler->knownOrderNumber($buyer, $data);
+            if ($number === null) {
+                if (!$this->replayGuard->accept($buyer, $header->payloadId, $header->timestamp)) {
+                    return $this->errorResponse(CxmlStatus::BAD_REQUEST, 'Bad Request');
+                }
+                if (!$this->orderRequestLimiter->create((string) $buyer->getId())->consume()->isAccepted()) {
+                    return $this->tooManyRequests();
+                }
+                $number = $this->orderRequestHandler->handle($buyer, $data, $header->payloadId);
+            }
         } catch (CxmlParseException $exception) {
             return $this->errorResponse(CxmlStatus::BAD_REQUEST, mb_substr($exception->getMessage(), 0, 200));
         } catch (OrderRequestRejected $exception) {
             return $this->errorResponse($exception->getCxmlStatus(), $exception->getMessage());
+        } catch (\Throwable $exception) {
+            $this->logger->error('PunchOut OrderRequest failed', ['buyer' => $buyer->getCode(), 'exception' => $exception]);
+
+            return $this->errorResponse(CxmlStatus::INTERNAL_ERROR, 'Internal Server Error');
         }
 
         return $this->xmlResponse($this->responseWriter->writeStatus(CxmlStatus::OK, 'OK', 'Order ' . $number));

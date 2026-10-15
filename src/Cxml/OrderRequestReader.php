@@ -36,12 +36,13 @@ final readonly class OrderRequestReader
         }
 
         return new OrderRequestData(
-            $orderId,
+            $this->clean($orderId),
             $header->getAttribute('type') !== '' ? $header->getAttribute('type') : 'new',
             $this->address($xpath, $this->element($xpath, self::HEADER . '/ShipTo/Address')),
             $this->address($xpath, $this->element($xpath, self::HEADER . '/BillTo/Address')),
             array_map(fn (\DOMElement $item): OrderRequestItem => $this->item($xpath, $item), $this->elements($items)),
-            mb_substr($this->text($xpath, self::HEADER . '/Comments'), 0, 1000),
+            mb_substr($this->clean($this->text($xpath, self::HEADER . '/Comments'), keepNewLines: true), 0, 1000),
+            $this->text($xpath, '/cXML/Request/@deploymentMode') === 'test',
         );
     }
 
@@ -54,13 +55,18 @@ final readonly class OrderRequestReader
             throw new CxmlParseException('Missing or invalid UnitPrice');
         }
 
+        $quantity = trim($item->getAttribute('quantity'));
+        if (1 !== preg_match('/^\d{1,4}$/', $quantity) || (int) $quantity < 1) {
+            throw new CxmlParseException('Quantities are whole numbers from 1 to 9999');
+        }
+
         return new OrderRequestItem(
             $item->getAttribute('lineNumber'),
             CartRebuilder::variantCode([
                 'supplierPartId' => $this->text($xpath, 'ItemID/SupplierPartID', $item),
                 'supplierPartAuxId' => $this->text($xpath, 'ItemID/SupplierPartAuxiliaryID', $item),
             ]),
-            max(0, (int) $item->getAttribute('quantity')),
+            (int) $quantity,
             $price,
             $moneyElement->getAttribute('currency'),
         );
@@ -75,14 +81,22 @@ final readonly class OrderRequestReader
         $state = $this->text($xpath, 'PostalAddress/State', $address);
 
         return new CxmlAddress(
-            $this->text($xpath, 'Name', $address),
-            $this->text($xpath, 'PostalAddress/DeliverTo', $address),
-            $street,
-            $this->text($xpath, 'PostalAddress/City', $address),
-            $this->text($xpath, 'PostalAddress/PostalCode', $address),
+            $this->clean($this->text($xpath, 'Name', $address)),
+            $this->clean($this->text($xpath, 'PostalAddress/DeliverTo', $address)),
+            array_map($this->clean(...), $street),
+            $this->clean($this->text($xpath, 'PostalAddress/City', $address)),
+            $this->clean($this->text($xpath, 'PostalAddress/PostalCode', $address)),
             strtoupper($country),
-            $state !== '' ? $state : null,
+            $state !== '' ? $this->clean($state) : null,
         );
+    }
+
+    /** Control and format characters (bidi overrides…) removed from texts shown in the back office. */
+    private function clean(string $text, bool $keepNewLines = false): string
+    {
+        $text = $keepNewLines ? str_replace("\r\n", "\n", $text) : $text;
+
+        return trim((string) preg_replace($keepNewLines ? '/(?!\n)[\p{Cc}\p{Cf}]/u' : '/[\p{Cc}\p{Cf}]/u', $keepNewLines ? '' : ' ', $text));
     }
 
     private function element(\DOMXPath $xpath, string $query): \DOMElement

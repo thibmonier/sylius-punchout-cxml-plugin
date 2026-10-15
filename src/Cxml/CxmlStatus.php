@@ -21,6 +21,8 @@ final class CxmlStatus
 
     public const OPERATION_FAILED = 450;
 
+    public const INTERNAL_ERROR = 500;
+
     /** @return array{code: int, text: string} */
     public static function ok(): array
     {
