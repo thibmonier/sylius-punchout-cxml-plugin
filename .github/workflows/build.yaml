@@ -107,5 +107,9 @@ jobs:
                 run: vendor/bin/console lint:container
 
             -
+                name: Validate Doctrine mapping
+                run: vendor/bin/console doctrine:schema:validate --skip-sync
+
+            -
                 name: Run Non-unit PHPUnit tests
                 run: vendor/bin/phpunit --colors=always --testsuite=non-unit
