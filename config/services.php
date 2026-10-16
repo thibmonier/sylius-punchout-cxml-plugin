@@ -33,6 +33,7 @@ use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutCartStorageListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\EventListener\PunchoutSessionEndListener;
 use Tmonier\SyliusPunchoutCxmlPlugin\Form\Type\Admin\BuyerType;
 use Tmonier\SyliusPunchoutCxmlPlugin\Twig\PunchoutExtension;
+use Tmonier\SyliusPunchoutCxmlPlugin\Workflow\PunchoutCompleteGuard;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\StartAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Controller\TransferAction;
 use Tmonier\SyliusPunchoutCxmlPlugin\Classification\ClassificationManager;
@@ -222,6 +223,12 @@ return static function (ContainerConfigurator $container): void {
     // Shop: no Sylius checkout during a PunchOut session (US-015)
     $services->set(CheckoutBlockerListener::class)
         ->tag('kernel.event_listener', ['event' => 'kernel.request', 'priority' => 4]);
+
+    // Shop and API: a PunchOut cart cannot be completed (Symfony Workflow adapter; the winzou one is prepended)
+    $services->set(PunchoutCompleteGuard::class)
+        ->arg('$connection', service('doctrine.dbal.default_connection'))
+        ->tag('kernel.event_listener', ['event' => 'workflow.sylius_order_checkout.guard.complete'])
+        ->public(); // winzou resolves its callbacks from the container
 
     // Shop: the PunchOut cart never becomes the regular session cart
     $services->set(PunchoutCartStorageListener::class)
