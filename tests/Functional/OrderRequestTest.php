@@ -77,6 +77,22 @@ final class OrderRequestTest extends WebTestCase
         self::assertSame($buyer->getId(), $event->buyer->getId());
     }
 
+    public function testAFailingListenerDoesNotTurnTheAnswerIntoAnError(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(PunchoutOrderCreated::class, static function (): never {
+            throw new \RuntimeException('listener failure');
+        });
+
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
+
+        self::assertStringContainsString('<Status code="200"', $body, $body);
+        self::assertSame(1, $this->countOrders($orderId));
+    }
+
     public function testARefusedPurchaseOrderAnnouncesNothing(): void
     {
         ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
