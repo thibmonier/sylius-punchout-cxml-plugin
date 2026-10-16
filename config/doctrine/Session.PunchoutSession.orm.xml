@@ -34,7 +34,7 @@
 
         <!-- R1: isolated PunchOut cart — accessed exclusively via $session->getCart() -->
         <many-to-one field="cart"
-                     target-entity="Sylius\Component\Core\Model\Order"
+                     target-entity="Sylius\Component\Core\Model\OrderInterface"
                      fetch="EAGER">
             <join-column name="order_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
         </many-to-one>
