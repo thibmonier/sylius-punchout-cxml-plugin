@@ -11,6 +11,7 @@ use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Core\OrderCheckoutStates;
 use Sylius\Component\Core\OrderPaymentStates;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
@@ -70,10 +71,10 @@ final class OrderRequestTest extends WebTestCase
         $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
 
         self::assertCount(1, $events, 'A repost creates no order, so it announces nothing');
-        $order = $this->order($orderId);
-        self::assertSame($orderId, $events[0]->purchaseOrderId);
-        self::assertSame($order->getId(), $events[0]->order->getId());
-        self::assertSame($buyer->getId(), $events[0]->buyer->getId());
+        $event = $events[0] ?? self::fail('No event');
+        self::assertSame($orderId, $event->purchaseOrderId);
+        self::assertSame($this->order($orderId)->getId(), $event->order->getId());
+        self::assertSame($buyer->getId(), $event->buyer->getId());
     }
 
     public function testARefusedPurchaseOrderAnnouncesNothing(): void
@@ -325,7 +326,9 @@ final class OrderRequestTest extends WebTestCase
     {
         /** @var \ArrayObject<int, PunchoutOrderCreated> $events */
         $events = new \ArrayObject();
-        self::getContainer()->get('event_dispatcher')->addListener(PunchoutOrderCreated::class, static function (PunchoutOrderCreated $event) use ($events): void {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(PunchoutOrderCreated::class, static function (PunchoutOrderCreated $event) use ($events): void {
             $events[] = $event;
         });
 

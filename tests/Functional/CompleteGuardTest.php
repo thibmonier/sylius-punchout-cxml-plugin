@@ -9,8 +9,12 @@ use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Sylius\Component\Core\OrderCheckoutTransitions;
+use Sylius\Component\Shipping\Model\ShippingMethodInterface;
+use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
+use Sylius\Resource\Factory\FactoryInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 
@@ -81,14 +85,14 @@ final class CompleteGuardTest extends WebTestCase
         self::assertInstanceOf(ChannelInterface::class, $channel);
         $catalog->withoutPromotions($channel);
         $variant = $catalog->createVariant($channel, 1250);
-        $catalog->enableOrderRequests($buyer);
+        $methods = $catalog->enableOrderRequests($buyer);
         $this->startPunchout($buyer, $secret);
         $cartId = $this->addToCurrentCart((string) $variant->getCode(), 2)['id'];
 
         $cart = $this->entityManager()->find(OrderInterface::class, $cartId);
         self::assertInstanceOf(OrderInterface::class, $cart);
 
-        return $this->readyForCompletion($cart);
+        return $this->readyForCompletion($cart, $methods);
     }
 
     private function regularCart(): OrderInterface
@@ -99,16 +103,17 @@ final class CompleteGuardTest extends WebTestCase
         self::assertInstanceOf(ChannelInterface::class, $channel);
         $catalog->withoutPromotions($channel);
         $variant = $catalog->createVariant($channel, 1250);
-        $catalog->enableOrderRequests($buyer);
+        $methods = $catalog->enableOrderRequests($buyer);
 
         $user = $buyer->getCustomer()?->getUser();
         self::assertInstanceOf(ShopUserInterface::class, $user);
         $this->client->loginUser($user, 'shop');
 
-        return $this->readyForCompletion($catalog->createRegularCart($buyer, $variant));
+        return $this->readyForCompletion($catalog->createRegularCart($buyer, $variant), $methods);
     }
 
-    private function readyForCompletion(OrderInterface $cart): OrderInterface
+    /** @param array{shipping: string, payment: string} $methods */
+    private function readyForCompletion(OrderInterface $cart, array $methods): OrderInterface
     {
         $cart->setTokenValue($cart->getTokenValue() ?? bin2hex(random_bytes(16)));
         $address = $this->address();
@@ -116,14 +121,15 @@ final class CompleteGuardTest extends WebTestCase
         $cart->setBillingAddress(clone $address);
         $this->stateMachine()->apply($cart, OrderCheckoutTransitions::GRAPH, OrderCheckoutTransitions::TRANSITION_ADDRESS);
 
-        $container = self::getContainer();
-        $channel = $cart->getChannel();
+        $shipping = $this->service('sylius.repository.shipping_method', RepositoryInterface::class)->findOneBy(['code' => $methods['shipping']]);
+        self::assertInstanceOf(ShippingMethodInterface::class, $shipping);
         foreach ($cart->getShipments() as $shipment) {
-            $shipment->setMethod($container->get('sylius.resolver.shipping_methods')->getSupportedMethods($shipment)[0] ?? null);
+            $shipment->setMethod($shipping);
         }
         $this->stateMachine()->apply($cart, OrderCheckoutTransitions::GRAPH, OrderCheckoutTransitions::TRANSITION_SELECT_SHIPPING);
 
-        $payment = $container->get('sylius.repository.payment_method')->findOneBy(['code' => $this->paymentCode($channel)]);
+        $payment = $this->service('sylius.repository.payment_method', RepositoryInterface::class)->findOneBy(['code' => $methods['payment']]);
+        self::assertInstanceOf(PaymentMethodInterface::class, $payment);
         foreach ($cart->getPayments() as $item) {
             $item->setMethod($payment);
         }
@@ -133,20 +139,10 @@ final class CompleteGuardTest extends WebTestCase
         return $cart;
     }
 
-    private function paymentCode(?ChannelInterface $channel): ?string
-    {
-        foreach (self::getContainer()->get('sylius.repository.payment_method')->findBy(['enabled' => true]) as $method) {
-            if ($channel !== null && $method->hasChannel($channel) && str_starts_with((string) $method->getCode(), 'PO_PAY_')) {
-                return $method->getCode();
-            }
-        }
-
-        return null;
-    }
-
     private function address(): AddressInterface
     {
-        $address = self::getContainer()->get('sylius.factory.address')->createNew();
+        $address = $this->service('sylius.factory.address', FactoryInterface::class)->createNew();
+        self::assertInstanceOf(AddressInterface::class, $address);
         $address->setFirstName('Claire');
         $address->setLastName('Martin');
         $address->setStreet('12 rue de la Paix');
@@ -155,6 +151,21 @@ final class CompleteGuardTest extends WebTestCase
         $address->setCountryCode('FR');
 
         return $address;
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $class
+     *
+     * @return T
+     */
+    private function service(string $id, string $class): object
+    {
+        $service = self::getContainer()->get($id);
+        self::assertInstanceOf($class, $service);
+
+        return $service;
     }
 
     private function patchComplete(string $token): void
@@ -167,10 +178,7 @@ final class CompleteGuardTest extends WebTestCase
 
     private function stateMachine(): StateMachineInterface
     {
-        $stateMachine = self::getContainer()->get('sylius_abstraction.state_machine');
-        self::assertInstanceOf(StateMachineInterface::class, $stateMachine);
-
-        return $stateMachine;
+        return $this->service('sylius_abstraction.state_machine', StateMachineInterface::class);
     }
 
     private function entityManager(): EntityManagerInterface
