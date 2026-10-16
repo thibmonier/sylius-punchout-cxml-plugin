@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PunchoutOrderCreated` event, dispatched once after the commit when an `OrderRequest` creates an order (purchase order id, order, buyer): listen to it instead of reading the order notes
+- Guard on the `complete` transition of `sylius_order_checkout` (Symfony Workflow and winzou): a cart opened by a PunchOut session cannot be completed, `PATCH /api/v2/shop/orders/{token}/complete` included
+- CI validates the Doctrine mapping (`doctrine:schema:validate --skip-sync`)
+
+### Fixed
+
+- Orders created by an `OrderRequest` are no longer guest orders (`setCustomerWithAuthorization()`): the trade-credit plugin accepts on-account payment for them
+- The Order, Customer and Channel relations target `OrderInterface`, `CustomerInterface` and `ChannelInterface` instead of the concrete classes: an application overriding those models needs no `resolve_target_entities` workaround (no schema change)
+
 ## [1.1.1] - 2026-10-15
 
 ### Fixed

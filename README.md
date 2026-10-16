@@ -48,6 +48,24 @@ e-mails), with the `ShipTo` / `BillTo` addresses and the purchase order number i
 - `update` / `delete` purchase orders and `deploymentMode="test"` documents create no order (450);
 - at most `rate_limits.order_requests` new purchase orders per buyer (60 per hour by default).
 
+The order belongs to the buyer's customer, as an authorized customer (not a guest order), so
+plugins that restrict on-account payment to known customers accept it.
+
+**Event.** Once the order is committed, `Tmonier\SyliusPunchoutCxmlPlugin\Order\PunchoutOrderCreated`
+is dispatched once, carrying `purchaseOrderId` (the `orderID` of the buyer's purchase order), the
+Sylius `order` and the `buyer`. A repost or a refused purchase order dispatches nothing. Listen to it
+instead of reading the order notes.
+
+**PunchOut carts cannot be completed.** A guard on the `complete` transition of `sylius_order_checkout`
+(Symfony Workflow and winzou) refuses to complete a cart opened by a PunchOut session, which closes
+`PATCH /api/v2/shop/orders/{token}/complete`. Orders built from an `OrderRequest` and shop orders are
+not affected.
+
+**Doctrine.** The relations to the Sylius order, customer and channel target `OrderInterface`,
+`CustomerInterface` and `ChannelInterface`. Sylius resolves them to your model classes
+(`resolve_target_entities` is registered by Sylius for its resources): an application that overrides
+those models needs no entry of its own. Check with `bin/console doctrine:schema:validate`.
+
 The shared secret of such a buyer can now place orders on account: keep it as safe as a payment
 credential. See [ADR-0008](docs/adr/0008-order-request.md).
 
