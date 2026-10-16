@@ -40,7 +40,9 @@ final readonly class PunchoutCartFactory
         $cart->setChannel($channel);
         $cart->setCurrencyCode($channel->getBaseCurrency()?->getCode() ?? 'EUR');
         $cart->setLocaleCode($channel->getDefaultLocale()?->getCode() ?? 'en_US');
-        $cart->setCustomer($customer);
+        // Not setCustomer(): it leaves the cart "created by guest", and the trade-credit plugin refuses
+        // on-account payment for a guest order. The customer is the one the buyer is linked to.
+        $cart->setCustomerWithAuthorization($customer);
         $cart->setState('cart');
 
         $cart->setCheckoutState('cart');

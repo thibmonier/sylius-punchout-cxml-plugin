@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-16
+
+### Added
+
+- `PunchoutOrderCreated` event, dispatched once after the commit when an `OrderRequest` creates an order (purchase order id, order, buyer): listen to it instead of reading the order notes. Listeners are synchronous and must not throw: an exception is logged and the cXML answer stays 200. The constructor of `OrderRequestHandler` gains two arguments (event dispatcher, logger), without effect with autowiring
+- Guard on the `complete` transition of `sylius_order_checkout` (Symfony Workflow and winzou): a cart opened by a PunchOut session cannot be completed, `PATCH /api/v2/shop/orders/{token}/complete` included. Limit: with `keep_transferred_carts`, the retention purge deletes the session and keeps the cart, which can then be completed
+- CI validates the Doctrine mapping (`doctrine:schema:validate --skip-sync`)
+
+### Fixed
+
+- Every cart created by `PunchoutCartFactory` (PunchOut session start, OCI, `OrderRequest`) is no longer a guest cart (`setCustomerWithAuthorization()`): the trade-credit plugin accepts on-account payment for the orders of an `OrderRequest`
+- The Order, Customer and Channel relations target `OrderInterface`, `CustomerInterface` and `ChannelInterface` instead of the concrete classes: an application overriding those models needs no `resolve_target_entities` workaround (no schema change)
 
 ## [1.1.1] - 2026-10-15
 
@@ -52,7 +63,7 @@ First release.
 - OCI entry by POST only unless `oci_allow_get`; an OCI buyer cannot authenticate on the cXML endpoint
 - Journal bodies only for authenticated senders, masked on the parsed document (secrets, Extrinsic outside the allowed list, contacts and addresses, e-mail addresses)
 
-[Unreleased]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.1...HEAD
+[1.2.0]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/thibmonier/sylius-punchout-cxml-plugin/releases/tag/v1.0.0

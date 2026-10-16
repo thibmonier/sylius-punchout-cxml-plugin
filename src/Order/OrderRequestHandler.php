@@ -7,6 +7,8 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Order;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderRequestData;
@@ -23,6 +25,8 @@ final readonly class OrderRequestHandler
     public function __construct(
         private EntityManagerInterface $entityManager,
         private OrderBuilder $orderBuilder,
+        private EventDispatcherInterface $eventDispatcher,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -89,13 +93,20 @@ final readonly class OrderRequestHandler
             $this->entityManager->flush();
             $connection->update(self::TABLE, ['order_id' => $order->getId()], ['id' => $claim]);
             $connection->commit();
-
-            return (string) $order->getNumber();
         } catch (\Throwable $exception) {
             $connection->rollBack();
             $this->entityManager->clear();
 
             throw $exception;
         }
+
+        // The order is committed: a failing listener must not turn the cXML answer into a 500.
+        try {
+            $this->eventDispatcher->dispatch(new PunchoutOrderCreated($request->orderId, $order, $buyer));
+        } catch (\Throwable $exception) {
+            $this->logger->error('A PunchoutOrderCreated listener failed', ['exception' => $exception, 'order' => $order->getNumber()]);
+        }
+
+        return (string) $order->getNumber();
     }
 }

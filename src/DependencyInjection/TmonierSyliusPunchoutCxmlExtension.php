@@ -11,6 +11,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Tmonier\SyliusPunchoutCxmlPlugin\Workflow\PunchoutCompleteGuard;
 
 final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension implements PrependExtensionInterface
 {
@@ -76,6 +77,17 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
                 ],
             ],
         ]);
+
+        // The same guard for applications still on the winzou state machine adapter.
+        if ($container->hasExtension('winzou_state_machine')) {
+            $container->prependExtensionConfig('winzou_state_machine', [
+                'sylius_order_checkout' => ['callbacks' => ['guard' => ['tmonier_punchout_cart' => [
+                    'on' => 'complete',
+                    'do' => ['@' . PunchoutCompleteGuard::class, 'allows'],
+                    'args' => ['object'],
+                ]]]],
+            ]);
+        }
 
         // Rate limiters — only if symfony/rate-limiter is available
         if (class_exists(RateLimiterFactory::class)) {
