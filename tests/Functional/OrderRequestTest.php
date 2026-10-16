@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerIdentity;
+use Tmonier\SyliusPunchoutCxmlPlugin\Order\PunchoutOrderCreated;
 
 /** US-030: the approved purchase order becomes a Sylius order, once. */
 final class OrderRequestTest extends WebTestCase
@@ -47,6 +48,43 @@ final class OrderRequestTest extends WebTestCase
         $again = $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 2, '12.50']]));
         self::assertStringContainsString('<Status code="200"', $again, $again);
         self::assertSame(1, $this->countOrders($orderId), 'A reposted purchase order creates no new order');
+    }
+
+    public function testTheOrderBelongsToAnAuthorizedCustomerNotToAGuest(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+
+        $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
+
+        self::assertFalse($this->order($orderId)->isCreatedByGuest(), 'The trade-credit plugin refuses on-account payment for a guest order');
+    }
+
+    public function testTheCreationOfTheOrderIsAnnouncedOnceWithThePurchaseOrderId(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $orderId = 'PO-' . bin2hex(random_bytes(4));
+        $events = $this->recordedEvents();
+
+        $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
+        $this->postSetup($this->orderRequestXml($buyer, $secret, $orderId, [[(string) $variant->getCode(), 1, '12.50']]));
+
+        self::assertCount(1, $events, 'A repost creates no order, so it announces nothing');
+        $order = $this->order($orderId);
+        self::assertSame($orderId, $events[0]->purchaseOrderId);
+        self::assertSame($order->getId(), $events[0]->order->getId());
+        self::assertSame($buyer->getId(), $events[0]->buyer->getId());
+    }
+
+    public function testARefusedPurchaseOrderAnnouncesNothing(): void
+    {
+        ['buyer' => $buyer, 'secret' => $secret, 'variant' => $variant] = $this->orderingBuyer();
+        $events = $this->recordedEvents();
+
+        $body = $this->postSetup($this->orderRequestXml($buyer, $secret, 'PO-' . bin2hex(random_bytes(4)), [[(string) $variant->getCode(), 1, '99.99']]));
+
+        self::assertStringContainsString('Prices changed', $body);
+        self::assertSame([], $events->getArrayCopy());
     }
 
     public function testTheVerySameDocumentSentAgainGetsTheSameOrder(): void
@@ -280,6 +318,18 @@ final class OrderRequestTest extends WebTestCase
         self::assertNotNull($address);
 
         return [$address->getFirstName(), $address->getLastName(), $address->getCompany(), $address->getStreet(), $address->getCity(), $address->getPostcode(), $address->getCountryCode()];
+    }
+
+    /** @return \ArrayObject<int, PunchoutOrderCreated> */
+    private function recordedEvents(): \ArrayObject
+    {
+        /** @var \ArrayObject<int, PunchoutOrderCreated> $events */
+        $events = new \ArrayObject();
+        self::getContainer()->get('event_dispatcher')->addListener(PunchoutOrderCreated::class, static function (PunchoutOrderCreated $event) use ($events): void {
+            $events[] = $event;
+        });
+
+        return $events;
     }
 
     private function entityManager(): EntityManagerInterface

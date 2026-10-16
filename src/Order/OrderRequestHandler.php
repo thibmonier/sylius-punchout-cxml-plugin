@@ -7,6 +7,7 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Order;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\CxmlStatus;
 use Tmonier\SyliusPunchoutCxmlPlugin\Cxml\OrderRequestData;
@@ -23,6 +24,7 @@ final readonly class OrderRequestHandler
     public function __construct(
         private EntityManagerInterface $entityManager,
         private OrderBuilder $orderBuilder,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -89,13 +91,15 @@ final readonly class OrderRequestHandler
             $this->entityManager->flush();
             $connection->update(self::TABLE, ['order_id' => $order->getId()], ['id' => $claim]);
             $connection->commit();
-
-            return (string) $order->getNumber();
         } catch (\Throwable $exception) {
             $connection->rollBack();
             $this->entityManager->clear();
 
             throw $exception;
         }
+
+        $this->eventDispatcher->dispatch(new PunchoutOrderCreated($request->orderId, $order, $buyer));
+
+        return (string) $order->getNumber();
     }
 }
