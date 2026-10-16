@@ -54,12 +54,14 @@ plugins that restrict on-account payment to known customers accept it.
 **Event.** Once the order is committed, `Tmonier\SyliusPunchoutCxmlPlugin\Order\PunchoutOrderCreated`
 is dispatched once, carrying `purchaseOrderId` (the `orderID` of the buyer's purchase order), the
 Sylius `order` and the `buyer`. A repost or a refused purchase order dispatches nothing. Listen to it
-instead of reading the order notes.
+instead of reading the order notes. Listeners run synchronously in the request and must not throw:
+an exception is logged and the cXML answer stays 200, since the order is already committed.
 
 **PunchOut carts cannot be completed.** A guard on the `complete` transition of `sylius_order_checkout`
 (Symfony Workflow and winzou) refuses to complete a cart opened by a PunchOut session, which closes
 `PATCH /api/v2/shop/orders/{token}/complete`. Orders built from an `OrderRequest` and shop orders are
-not affected.
+not affected. Limit: with `keep_transferred_carts`, the retention purge deletes the session and keeps
+the cart, which is then no longer recognised as a PunchOut cart.
 
 **Doctrine.** The relations to the Sylius order, customer and channel target `OrderInterface`,
 `CustomerInterface` and `ChannelInterface`. Sylius resolves them to your model classes
