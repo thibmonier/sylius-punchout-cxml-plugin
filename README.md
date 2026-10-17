@@ -1,5 +1,7 @@
 # Sylius PunchOut cXML/OCI Plugin
 
+> Français : [README.fr.md](README.fr.md) <!-- vitrine:lang -->
+
 [![Build](https://github.com/thibmonier/sylius-punchout-cxml-plugin/actions/workflows/build.yaml/badge.svg)](https://github.com/thibmonier/sylius-punchout-cxml-plugin/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -106,6 +108,16 @@ current price, without opening a session (no item when it is no longer sold); `F
 - The buyer chooses whether the **tax** and the **shipping** of the cart are sent.
 - **PunchOut log** (admin): every exchange with its cXML status and the SHA-256 of its body; with
   `log_bodies: true`, the body itself, shared secrets removed and e-mail addresses masked.
+
+## Screenshots
+
+![PunchOut buyers in the back office: cXML and OCI buyers linked to a Sylius customer and a channel (table crop of the page)](docs/images/admin-punchout-buyers.jpg)
+
+*PunchOut buyers in the back office: cXML and OCI buyers linked to a Sylius customer and a channel (table crop of the page)*
+
+![Procurement tool simulator of the demo, from which a PunchOut session is started](docs/images/shop-procurement-simulator.jpg)
+
+*Procurement tool simulator of the demo, from which a PunchOut session is started*
 
 ## Requirements
 
@@ -268,6 +280,14 @@ The simulator receives the cart on `http://localhost`, allowed by the developmen
 
 The cXML DTD in `tests/Resources/dtd/1.2.071/` comes from [cxml.org](https://www.cxml.org/) and is
 only used by the tests, under the cXML.org licence terms.
+
+<!-- vitrine:demo-b2b:start -->
+## B2B demo
+
+This plugin is used in the [Sylius B2B demo](https://github.com/thibmonier/sylius-b2b-demo): a Sylius 2.3 shop with fictitious sample data where the B2B plugins work together. The source code, setup and fixtures of the demo are in that repository.
+
+The demo is an example, not a production setup.
+<!-- vitrine:demo-b2b:end -->
 
 ## License
 
