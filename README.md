@@ -109,6 +109,16 @@ current price, without opening a session (no item when it is no longer sold); `F
 - **PunchOut log** (admin): every exchange with its cXML status and the SHA-256 of its body; with
   `log_bodies: true`, the body itself, shared secrets removed and e-mail addresses masked.
 
+## Screenshots
+
+![PunchOut buyers in the back office: cXML and OCI buyers linked to a Sylius customer and a channel (table crop of the page)](docs/images/admin-punchout-buyers.jpg)
+
+*PunchOut buyers in the back office: cXML and OCI buyers linked to a Sylius customer and a channel (table crop of the page)*
+
+![Procurement tool simulator of the demo, from which a PunchOut session is started](docs/images/shop-procurement-simulator.jpg)
+
+*Procurement tool simulator of the demo, from which a PunchOut session is started*
+
 ## Requirements
 
 PHP 8.2+, Sylius 2.2.9+ or 2.3+, Symfony 6.4 / 7.4 / 8, ext-dom, ext-libxml. No third-party cXML

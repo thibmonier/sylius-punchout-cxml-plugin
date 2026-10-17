@@ -109,6 +109,16 @@ actuel de l'acheteur, sans ouvrir de session (aucun article s'il n'est plus vend
 - **Journal PunchOut** (administration) : chaque échange avec son statut cXML et le SHA-256 de son corps ; avec
   `log_bodies: true`, le corps lui-même, sans les secrets partagés et avec les adresses e-mail masquées.
 
+## Captures d'écran
+
+![Acheteurs PunchOut en administration : acheteurs cXML et OCI liés à un client Sylius et à un canal (recadrage du tableau)](docs/images/admin-punchout-buyers.jpg)
+
+*Acheteurs PunchOut en administration : acheteurs cXML et OCI liés à un client Sylius et à un canal (recadrage du tableau)*
+
+![Simulateur d'outil d'achat de la démo, depuis lequel on lance une session PunchOut](docs/images/shop-procurement-simulator.jpg)
+
+*Simulateur d'outil d'achat de la démo, depuis lequel on lance une session PunchOut*
+
 ## Prérequis
 
 PHP 8.2+, Sylius 2.2.9+ ou 2.3+, Symfony 6.4 / 7.4 / 8, ext-dom, ext-libxml. Aucune bibliothèque cXML
