@@ -6,6 +6,7 @@ tmonier_punchout:
             transfer: 'Transfer to my procurement system'
             cancel: 'Cancel and go back'
             unavailable: 'These items are no longer available and were left out: %parts%'
+        buyers: 'PunchOut Buyers'
         menu:
             buyers: 'PunchOut Buyers'
             logs: 'PunchOut log'

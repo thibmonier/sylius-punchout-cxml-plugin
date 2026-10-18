@@ -6,6 +6,7 @@ tmonier_punchout:
             transfer: 'Transferir a mi sistema de compras'
             cancel: 'Cancelar y volver'
             unavailable: 'Estos artículos ya no están disponibles y se han omitido: %parts%'
+        buyers: 'Compradores PunchOut'
         menu:
             buyers: 'Compradores PunchOut'
             logs: 'Registro PunchOut'
