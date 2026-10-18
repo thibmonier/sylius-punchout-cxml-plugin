@@ -6,6 +6,7 @@ tmonier_punchout:
             transfer: 'Overdragen naar mijn inkoopsysteem'
             cancel: 'Annuleren en teruggaan'
             unavailable: 'Deze artikelen zijn niet meer beschikbaar en zijn weggelaten: %parts%'
+        buyers: PunchOut-kopers
         menu:
             buyers: PunchOut-kopers
             logs: PunchOut-logboek

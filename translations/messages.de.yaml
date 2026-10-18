@@ -6,6 +6,7 @@ tmonier_punchout:
             transfer: 'An mein Beschaffungssystem übertragen'
             cancel: 'Abbrechen und zurückkehren'
             unavailable: 'Diese Artikel sind nicht mehr verfügbar und wurden entfernt: %parts%'
+        buyers: PunchOut-Käufer
         menu:
             buyers: PunchOut-Käufer
             logs: PunchOut-Protokoll
