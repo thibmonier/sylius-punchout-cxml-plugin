@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-18
+
 ### Fixed
 - The PunchOut buyers list showed the raw key `tmonier_punchout.ui.buyers` as page title and breadcrumb: translated in the 7 languages.
 
