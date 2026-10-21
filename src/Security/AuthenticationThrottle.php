@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusPunchoutCxmlPlugin\Security;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
  * Failed authentications of a buyer identity (cXML From credential, OCI buyer code), counted per
@@ -19,8 +19,8 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
 final readonly class AuthenticationThrottle
 {
     public function __construct(
-        private RateLimiterFactory $authenticationFailureLimiter,
-        private RateLimiterFactory $identityFailureLimiter,
+        private RateLimiterFactoryInterface $authenticationFailureLimiter,
+        private RateLimiterFactoryInterface $identityFailureLimiter,
         private LoggerInterface $logger,
     ) {
     }

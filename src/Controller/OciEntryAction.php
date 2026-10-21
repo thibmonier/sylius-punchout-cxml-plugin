@@ -7,7 +7,7 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\CredentialVerifier;
 use Tmonier\SyliusPunchoutCxmlPlugin\Log\LoggedExchange;
@@ -47,7 +47,7 @@ final readonly class OciEntryAction
         private SessionFactory $sessionFactory,
         private SessionStarter $sessionStarter,
         private MessageLogger $messageLogger,
-        private RateLimiterFactory $entryLimiter,
+        private RateLimiterFactoryInterface $entryLimiter,
         private AuthenticationThrottle $throttle,
         private OciFunctions $ociFunctions,
         private OciFormWriter $ociFormWriter,

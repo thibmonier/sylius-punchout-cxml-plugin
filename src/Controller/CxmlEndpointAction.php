@@ -7,7 +7,7 @@ namespace Tmonier\SyliusPunchoutCxmlPlugin\Controller;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\Buyer;
 use Tmonier\SyliusPunchoutCxmlPlugin\Buyer\BuyerResolver;
@@ -57,12 +57,12 @@ final readonly class CxmlEndpointAction
         private StartTokenIssuer $startTokenIssuer,
         private UrlGeneratorInterface $urlGenerator,
         private ReplayGuard $replayGuard,
-        private RateLimiterFactory $setupLimiter,
+        private RateLimiterFactoryInterface $setupLimiter,
         private AuthenticationThrottle $throttle,
         private MessageLogger $messageLogger,
         private OrderRequestReader $orderRequestReader,
         private OrderRequestHandler $orderRequestHandler,
-        private RateLimiterFactory $orderRequestLimiter,
+        private RateLimiterFactoryInterface $orderRequestLimiter,
         private LoggerInterface $logger,
         private int $maxRequestBytes = 262144,
         private int $startTokenTtl = 300,
