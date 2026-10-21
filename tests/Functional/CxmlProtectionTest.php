@@ -6,7 +6,7 @@ namespace Tests\Tmonier\SyliusPunchoutCxmlPlugin\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusPunchoutCxmlPlugin\Session\PunchoutSession;
 
@@ -90,7 +90,7 @@ final class CxmlProtectionTest extends WebTestCase
         $fromIdentity = 'spent-' . bin2hex(random_bytes(4)) . '@example.com';
         ['buyer' => $buyer, 'secret' => $secret] = (new TestCatalog(self::getContainer()))->createBuyerWithCustomer(fromIdentity: $fromIdentity);
         $limiter = self::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
-        self::assertInstanceOf(RateLimiterFactory::class, $limiter);
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $limiter);
         $limiter->create('aribanetworkuserid|' . $fromIdentity)->consume(50);
 
         self::assertSame('429', $this->cxmlStatus($this->postSetup($this->setupRequestXml($buyer, 'wrong-secret', 'C'))));

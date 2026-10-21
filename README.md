@@ -121,7 +121,7 @@ current price, without opening a session (no item when it is no longer sold); `F
 
 ## Requirements
 
-PHP 8.2+, Sylius 2.2.9+ or 2.3+, Symfony 6.4 / 7.4 / 8, ext-dom, ext-libxml. No third-party cXML
+PHP 8.2+, Sylius 2.2.9+ or 2.3+, Symfony 7.4 / 8, ext-dom, ext-libxml. No third-party cXML
 library: documents are read and written with DOM (see [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
 
 ## Installation

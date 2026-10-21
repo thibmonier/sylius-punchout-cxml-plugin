@@ -6,7 +6,7 @@ Public docs: `README.md`.
 
 ## Stack
 
-PHP 8.2-8.4, Sylius 2.2/2.3, Symfony 6.4/7.4/8, ext-dom, ext-libxml (no external cXML library — ADR-002).
+PHP 8.2-8.4, Sylius 2.2/2.3, Symfony 7.4/8, ext-dom, ext-libxml (no external cXML library — ADR-002).
 
 ## Commands
 

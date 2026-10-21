@@ -10,7 +10,7 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tmonier\SyliusPunchoutCxmlPlugin\Workflow\PunchoutCompleteGuard;
 
 final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension implements PrependExtensionInterface
@@ -90,7 +90,7 @@ final class TmonierSyliusPunchoutCxmlExtension extends AbstractResourceExtension
         }
 
         // Rate limiters — only if symfony/rate-limiter is available
-        if (class_exists(RateLimiterFactory::class)) {
+        if (interface_exists(RateLimiterFactoryInterface::class)) {
             /** @var array{rate_limits: array{setup: array{limit: int, interval: string}, authentication_failures: array{limit: int, interval: string}, authentication_failures_per_identity: array{limit: int, interval: string}, oci_entry: array{limit: int, interval: string}, order_requests: array{limit: int, interval: string}}} $limits */
             $limits = $this->processConfiguration(new Configuration(), array_map(
                 static fn (array $c): array => isset($c['rate_limits']) ? ['rate_limits' => $c['rate_limits']] : [],

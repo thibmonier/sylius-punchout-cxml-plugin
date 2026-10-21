@@ -121,7 +121,7 @@ actuel de l'acheteur, sans ouvrir de session (aucun article s'il n'est plus vend
 
 ## Prérequis
 
-PHP 8.2+, Sylius 2.2.9+ ou 2.3+, Symfony 6.4 / 7.4 / 8, ext-dom, ext-libxml. Aucune bibliothèque cXML
+PHP 8.2+, Sylius 2.2.9+ ou 2.3+, Symfony 7.4 / 8, ext-dom, ext-libxml. Aucune bibliothèque cXML
 tierce : les documents sont lus et écrits avec DOM (voir [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
 
 ## Installation

@@ -8,7 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tests\Tmonier\SyliusPunchoutCxmlPlugin\TestCatalog;
 use Tmonier\SyliusCompanyAccountsPlugin\Entity\Company;
 use Tmonier\SyliusCompanyAccountsPlugin\Entity\CompanyMember;
@@ -117,7 +117,7 @@ final class OciTest extends WebTestCase
     {
         ['buyer' => $buyer, 'username' => $username, 'password' => $password] = (new TestCatalog(self::getContainer()))->createOciBuyer();
         $limiter = self::getContainer()->get('tmonier_punchout.test.identity_failure_limiter');
-        self::assertInstanceOf(RateLimiterFactory::class, $limiter);
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $limiter);
         $limiter->create('oci|' . $buyer->getCode())->consume(50);
 
         $this->enter($buyer, ['USERNAME' => $username, 'PASSWORD' => 'wrong-' . bin2hex(random_bytes(8)), 'HOOK_URL' => self::HOOK]);
