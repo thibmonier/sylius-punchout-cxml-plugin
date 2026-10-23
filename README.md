@@ -8,11 +8,12 @@
 PunchOut for Sylius 2: B2B buyers open your shop from their procurement system (SAP Ariba, Coupa,
 Jaggaer, Oracle…), shop at their own prices and send the cart back to their purchase requisition.
 
-Version 1.1: cXML PunchOut `create`, `edit` and `inspect`, `ProfileRequest`, purchase orders
-(`OrderRequest`) turned into Sylius orders, SAP OCI 5.0 entry, return, `VALIDATE` and `DETAIL`, cart
-transfer and cancel, UNSPSC codes and units, optional tax and shipping, exchange log — with replay
-protection, rate limiting and iframe support — buyer admin, buyer simulator, retention purge, GDPR
-erasure and diagnostic command.
+cXML PunchOut `create`, `edit` and `inspect`, `ProfileRequest`, purchase orders (`OrderRequest`) turned into
+Sylius orders, SAP OCI 5.0 entry, return, `VALIDATE` and `DETAIL`, cart transfer and cancel, UNSPSC codes and units,
+optional tax and shipping, exchange log — with replay protection, rate limiting and iframe support — buyer admin,
+buyer simulator, retention purge, GDPR erasure and diagnostic command. Also: a `PunchoutOrderCreated` event
+dispatched when a purchase order creates an order, a guard that refuses to complete a PunchOut cart, and carts of
+authorized (non-guest) customers. Current release and upgrade notes: see the [CHANGELOG](CHANGELOG.md).
 Specification and roadmap: [`project-management/`](project-management/).
 
 ## How it works
@@ -121,8 +122,15 @@ current price, without opening a session (no item when it is no longer sold); `F
 
 ## Requirements
 
-PHP 8.2+, Sylius 2.2.9+ or 2.3+, Symfony 7.4 / 8, ext-dom, ext-libxml. No third-party cXML
-library: documents are read and written with DOM (see [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
+| | Supported |
+|---|---|
+| PHP | 8.2, 8.3, 8.4 |
+| Sylius | 2.2 (2.2.9+) and 2.3 |
+| Symfony | 7.4, 8.0 (8.0 with Sylius 2.3); Symfony 6.4 is no longer supported since 1.3 |
+| Database | MySQL 8.4, MariaDB 11.4, PostgreSQL 17 |
+| PHP extensions | ext-dom, ext-libxml |
+
+No third-party cXML library: documents are read and written with DOM (see [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
 
 ## Installation
 
@@ -285,9 +293,6 @@ only used by the tests, under the cXML.org licence terms.
 ## B2B demo
 
 This plugin is used in the [Sylius B2B demo](https://github.com/thibmonier/sylius-b2b-demo): a Sylius 2.3 shop with fictitious sample data where the B2B plugins work together. The source code, setup and fixtures of the demo are in that repository.
-
-- Online demo: [sylius-b2b.thibaut-monier.fr](https://sylius-b2b.thibaut-monier.fr)
-- Author: [Thibaut Monier](https://www.linkedin.com/in/thibautmonier/)
 
 The demo is an example, not a production setup.
 <!-- vitrine:demo-b2b:end -->
