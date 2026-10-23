@@ -8,11 +8,13 @@
 PunchOut pour Sylius 2 : les acheteurs B2B ouvrent votre boutique depuis leur système d'achat (SAP Ariba, Coupa,
 Jaggaer, Oracle…), achètent à leurs propres prix et renvoient le panier vers leur demande d'achat.
 
-Version 1.1 : cXML PunchOut `create`, `edit` et `inspect`, `ProfileRequest`, bons de commande
-(`OrderRequest`) transformés en commandes Sylius, entrée SAP OCI 5.0, retour, `VALIDATE` et `DETAIL`, transfert
-et annulation du panier, codes et unités UNSPSC, taxes et livraison en option, journal des échanges — avec protection
-contre le rejeu, limitation de débit et prise en charge des iframes — administration des acheteurs, simulateur d'acheteur, purge de rétention, effacement RGPD
-et commande de diagnostic.
+cXML PunchOut `create`, `edit` et `inspect`, `ProfileRequest`, bons de commande (`OrderRequest`) transformés en
+commandes Sylius, entrée SAP OCI 5.0, retour, `VALIDATE` et `DETAIL`, transfert et annulation du panier, codes et
+unités UNSPSC, taxes et livraison en option, journal des échanges — avec protection contre le rejeu, limitation de
+débit et prise en charge des iframes — administration des acheteurs, simulateur d'acheteur, purge de rétention,
+effacement RGPD et commande de diagnostic. Aussi : un évènement `PunchoutOrderCreated` émis lorsqu'un bon de commande
+crée une commande, une garde qui refuse de finaliser un panier PunchOut, et des paniers de clients autorisés (pas des
+paniers invités). Version courante et notes de mise à jour : voir le [CHANGELOG](CHANGELOG.md).
 Spécification et feuille de route : [`project-management/`](project-management/).
 
 ## Fonctionnement
@@ -121,8 +123,15 @@ actuel de l'acheteur, sans ouvrir de session (aucun article s'il n'est plus vend
 
 ## Prérequis
 
-PHP 8.2+, Sylius 2.2.9+ ou 2.3+, Symfony 7.4 / 8, ext-dom, ext-libxml. Aucune bibliothèque cXML
-tierce : les documents sont lus et écrits avec DOM (voir [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
+| | Versions prises en charge |
+|---|---|
+| PHP | 8.2, 8.3, 8.4 |
+| Sylius | 2.2 (2.2.9+) et 2.3 |
+| Symfony | 7.4, 8.0 (8.0 avec Sylius 2.3) ; Symfony 6.4 n'est plus pris en charge depuis la 1.3 |
+| Base de données | MySQL 8.4, MariaDB 11.4, PostgreSQL 17 |
+| Extensions PHP | ext-dom, ext-libxml |
+
+Aucune bibliothèque cXML tierce : les documents sont lus et écrits avec DOM (voir [ADR-0002](docs/adr/0002-serialisation-cxml-dom.md)).
 
 ## Installation
 
