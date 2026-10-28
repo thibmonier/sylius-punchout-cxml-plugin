@@ -1,0 +1,23 @@
+# Dependency updates (US-209): Composer and GitHub Actions, weekly.
+version: 2
+updates:
+    - package-ecosystem: composer
+      directory: /
+      schedule:
+          interval: weekly
+      # A release must be a week old before it is proposed (security updates ignore the cooldown).
+      cooldown:
+          default-days: 7
+      groups:
+          composer-minor-and-patch:
+              update-types: [minor, patch]
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+      # A release must be a week old before it is proposed (security updates ignore the cooldown).
+      cooldown:
+          default-days: 7
+      groups:
+          github-actions:
+              patterns: ["*"]
